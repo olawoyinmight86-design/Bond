@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <defs>
+    <radialGradient id="ambient" cx="24" cy="24" r="22" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f43f5e" stop-opacity="0.25"/>
+      <stop offset="0.6" stop-color="#f43f5e" stop-opacity="0.05"/>
+      <stop offset="1" stop-color="#f43f5e" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ring" x1="6" y1="8" x2="42" y2="40" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fda4af"/>
+      <stop offset="0.35" stop-color="#f43f5e"/>
+      <stop offset="0.65" stop-color="#e11d48"/>
+      <stop offset="1" stop-color="#fb7185"/>
+    </linearGradient>
+    <linearGradient id="ringHl" x1="14" y1="6" x2="34" y2="20" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff" stop-opacity="0.5"/>
+      <stop offset="0.5" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="gem" cx="0.3" cy="0.3" r="0.8">
+      <stop stop-color="#fff"/>
+      <stop offset="0.3" stop-color="#fecdd3"/>
+      <stop offset="0.7" stop-color="#f43f5e"/>
+      <stop offset="1" stop-color="#9f1239"/>
+    </radialGradient>
+    <filter id="gemGlow">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <circle cx="24" cy="24" r="22" fill="url(#ambient)"/>
+  <circle cx="24" cy="24" r="14" fill="none" stroke="url(#ring)" stroke-width="4" stroke-linecap="round" stroke-dasharray="76 12" transform="rotate(-90 24 24)"/>
+  <circle cx="24" cy="24" r="14" fill="none" stroke="url(#ringHl)" stroke-width="4" stroke-linecap="round" stroke-dasharray="30 100" transform="rotate(-130 24 24)"/>
+  <circle cx="38" cy="24" r="3.5" fill="url(#gem)" filter="url(#gemGlow)"/>
+  <circle cx="37" cy="23" r="0.8" fill="#fff" opacity="0.9"/>
+</svg>
