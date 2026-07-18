@@ -10,7 +10,7 @@ type AuthState = {
   initialized: boolean;
   init: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string) => Promise<{ error: string | null; needsConfirmation: boolean }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: string | null }>;
@@ -54,8 +54,13 @@ export const useAuth = create<AuthState>((set, get) => ({
   },
 
   signUp: async (email, password) => {
-    const { error } = await supabase.auth.signUp({ email, password });
-    return { error: error?.message ?? null };
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) return { error: error.message, needsConfirmation: false };
+    // If no session returned, email confirmation is required
+    if (!data.session) {
+      return { error: null, needsConfirmation: true };
+    }
+    return { error: null, needsConfirmation: false };
   },
 
   signOut: async () => {
@@ -75,12 +80,17 @@ export const useAuth = create<AuthState>((set, get) => ({
       return;
     }
     if (!data) {
+      // Trigger should have created it, but fallback to client-side upsert
       const { data: created, error: createErr } = await supabase
         .from('profiles')
-        .insert({ id: user.id, email: user.email })
+        .upsert({ id: user.id, email: user.email })
         .select('*')
         .maybeSingle();
-      if (createErr) return;
+      if (createErr) {
+        const cached = cacheGet<Profile>('profile');
+        if (cached) set({ profile: cached });
+        return;
+      }
       if (created) {
         const profile = created as Profile;
         cacheSet('profile', profile);

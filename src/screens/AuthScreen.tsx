@@ -10,17 +10,27 @@ export default function AuthScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!online) { setError('You need an internet connection to sign in.'); return; }
     setError(null);
+    setInfo(null);
     setBusy(true);
-    const fn = mode === 'signin' ? signIn : signUp;
-    const { error } = await fn(email, password);
+    if (mode === 'signin') {
+      const { error } = await signIn(email, password);
+      if (error) setError(error);
+    } else {
+      const { error, needsConfirmation } = await signUp(email, password);
+      if (error) setError(error);
+      else if (needsConfirmation) {
+        setInfo('Account created! Check your email for a confirmation link, then sign in.');
+        setMode('signin');
+      }
+    }
     setBusy(false);
-    if (error) setError(error);
   };
 
   return (
@@ -50,6 +60,7 @@ export default function AuthScreen() {
           </div>
 
           {error && <p className="rounded-xl bg-error-50 px-4 py-3 text-sm text-error-600 animate-scale-in">{error}</p>}
+          {info && <p className="rounded-xl bg-accent-50 px-4 py-3 text-sm text-accent-700 animate-scale-in">{info}</p>}
 
           <button type="submit" disabled={busy || !online} className="btn-primary w-full py-3.5">
             {busy ? 'One moment...' : mode === 'signin' ? 'Welcome back' : 'Begin your bond'}
