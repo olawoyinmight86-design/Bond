@@ -35,8 +35,8 @@ In the Vercel project settings, go to **Settings → Environment Variables** and
 
 | Key | Value |
 |---|---|
-| `VITE_SUPABASE_URL` | `https://0ec90b57d6e95fcbda19832f.supabase.co` |
-| `VITE_SUPABASE_ANON_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJib2x0IiwicmVmIjoiMGVjOTBiNTdkNmU5NWZjYmRhMTk4MzJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4ODE1NzQsImV4cCI6MTc1ODg4MTU3NH0.9I8-U0x86Ak8t2DGaIk0HfvTSLsAyzdnz-Nw00mMkKw` |
+| `VITE_SUPABASE_URL` | `https://xjrfnnmgknqsspyvrohk.supabase.co` |
+| `VITE_SUPABASE_ANON_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqcmZubm1na25xc3NweXZyb2hrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODYwNDQsImV4cCI6MjA5OTY2MjA0NH0.bO75cxkJFIGhEQfFtklcq51sjtDwU_IXPrfQwR-QacA` |
 
 These are the only two variables needed. Both are client-safe (protected by Supabase RLS policies). No server-only keys are required on Vercel.
 
@@ -54,8 +54,8 @@ In **Settings → Domains**, add your custom domain and follow DNS instructions.
 
 | Variable | Value |
 |---|---|
-| `VITE_SUPABASE_URL` | `https://0ec90b57d6e95fcbda19832f.supabase.co` |
-| `VITE_SUPABASE_ANON_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJib2x0IiwicmVmIjoiMGVjOTBiNTdkNmU5NWZjYmRhMTk4MzJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4ODE1NzQsImV4cCI6MTc1ODg4MTU3NH0.9I8-U0x86Ak8t2DGaIk0HfvTSLsAyzdnz-Nw00mMkKw` |
+| `VITE_SUPABASE_URL` | `https://xjrfnnmgknqsspyvrohk.supabase.co` |
+| `VITE_SUPABASE_ANON_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqcmZubm1na25xc3NweXZyb2hrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODYwNDQsImV4cCI6MjA5OTY2MjA0NH0.bO75cxkJFIGhEQfFtklcq51sjtDwU_IXPrfQwR-QacA` |
 
 ### Not needed on Vercel (server-only, already in Supabase)
 
