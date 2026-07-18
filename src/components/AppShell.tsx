@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Home, Clock, MessageCircle, Settings, WifiOff } from 'lucide-react';
+import { Home, Clock, MessageCircle, Camera, Settings, WifiOff } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { usePresenceHeartbeat } from '../lib/presence';
 import { useOnlineStatus } from '../lib/useOnlineStatus';
@@ -10,6 +10,7 @@ import { BraceletLogo } from './BraceletLogo';
 const navItems = [
   { to: '/', label: 'Home', icon: Home },
   { to: '/timeline', label: 'Timeline', icon: Clock },
+  { to: '/photobooth', label: 'Booth', icon: Camera },
   { to: '/chat', label: 'Chat', icon: MessageCircle },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];

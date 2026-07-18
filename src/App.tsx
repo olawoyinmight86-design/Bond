@@ -8,6 +8,7 @@ import PairingScreen from './screens/PairingScreen';
 import DashboardScreen from './screens/DashboardScreen';
 import TimelineScreen from './screens/TimelineScreen';
 import ChatScreen from './screens/ChatScreen';
+import PhotoboothScreen from './screens/PhotoboothScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import AppShell from './components/AppShell';
 
@@ -43,6 +44,7 @@ export default function App() {
         <Route path="/" element={<DashboardScreen />} />
         <Route path="/timeline" element={<TimelineScreen />} />
         <Route path="/chat" element={<ChatScreen />} />
+        <Route path="/photobooth" element={<PhotoboothScreen />} />
         <Route path="/settings" element={<SettingsScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
