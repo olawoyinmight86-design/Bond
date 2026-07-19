@@ -29,28 +29,73 @@ export default function PairingScreen() {
     // Normalize code to uppercase for consistent matching
     const normalizedCode = code.trim().toUpperCase();
 
-    // First, query with case-insensitive search to handle any casing issues
-    const { data: partner, error: findErr } = await supabase
-      .from('profiles')
-      .select('id, paired_with, partner_code')
-      .or(`partner_code.eq.${normalizedCode},partner_code.ilike.${normalizedCode}`)
-      .maybeSingle();
+    try {
+      // Query with exact match (case-sensitive at DB level, but we uppercase both)
+      const { data: partner, error: findErr } = await supabase
+        .from('profiles')
+        .select('id, paired_with, partner_code')
+        .eq('partner_code', normalizedCode)
+        .maybeSingle();
 
-    if (findErr) { setError(findErr.message); setBusy(false); return; }
-    if (!partner) { setError('No one has that code. Check the spelling and try again.'); setBusy(false); return; }
-    if (partner.paired_with) { setError('That person is already paired'); setBusy(false); return; }
-    if (partner.id === profile?.id) { setError("That's your own code"); setBusy(false); return; }
+      if (findErr) { 
+        console.error('Partner lookup error:', findErr);
+        setError('Database error: ' + findErr.message); 
+        setBusy(false); 
+        return; 
+      }
+      
+      if (!partner) { 
+        setError('No one has that code. Check the spelling and try again.'); 
+        setBusy(false); 
+        return; 
+      }
+      
+      if (partner.paired_with) { 
+        setError('That person is already paired'); 
+        setBusy(false); 
+        return; 
+      }
+      
+      if (partner.id === profile?.id) { 
+        setError("That's your own code"); 
+        setBusy(false); 
+        return; 
+      }
 
-    const { error: updateErr } = await supabase
-      .from('profiles')
-      .update({ paired_with: partner.id })
-      .eq('id', profile!.id);
-    if (updateErr) { setError(updateErr.message); setBusy(false); return; }
+      // Update current user's paired_with
+      const { error: updateErr } = await supabase
+        .from('profiles')
+        .update({ paired_with: partner.id })
+        .eq('id', profile!.id);
+        
+      if (updateErr) { 
+        console.error('Update error:', updateErr);
+        setError('Error pairing: ' + updateErr.message); 
+        setBusy(false); 
+        return; 
+      }
 
-    await supabase.from('profiles').update({ paired_with: profile!.id }).eq('id', partner.id);
-    await refreshProfile();
-    setBusy(false);
-    navigate('/');
+      // Update partner's paired_with
+      const { error: partnerUpdateErr } = await supabase
+        .from('profiles')
+        .update({ paired_with: profile!.id })
+        .eq('id', partner.id);
+        
+      if (partnerUpdateErr) {
+        console.error('Partner update error:', partnerUpdateErr);
+        setError('Error completing pair: ' + partnerUpdateErr.message);
+        setBusy(false);
+        return;
+      }
+
+      await refreshProfile();
+      setBusy(false);
+      navigate('/');
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      setError('Unexpected error. Try again.');
+      setBusy(false);
+    }
   };
 
   return (
