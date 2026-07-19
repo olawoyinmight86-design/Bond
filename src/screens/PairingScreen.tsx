@@ -11,6 +11,7 @@ export default function PairingScreen() {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [debug, setDebug] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const partnerCode = profile?.partner_code ?? '';
@@ -25,33 +26,56 @@ export default function PairingScreen() {
     if (!code.trim()) { setError("Enter your partner's code"); return; }
     setBusy(true);
     setError(null);
+    setDebug(null);
 
     const normalizedCode = code.trim().toUpperCase();
-    console.log('Searching for partner code:', normalizedCode);
+    console.log('🔍 Searching for partner code:', normalizedCode);
 
     try {
-      // Query without any filters first to test RLS
+      // Fetch all profiles with detailed logging
+      console.log('📡 Fetching all profiles...');
       const { data: allProfiles, error: allErr } = await supabase
         .from('profiles')
         .select('id, partner_code, paired_with, email');
 
       if (allErr) {
-        console.error('Error fetching all profiles:', allErr);
-        setError('Permission error: ' + allErr.message);
+        console.error('❌ Error fetching profiles:', allErr);
+        setDebug(`Error fetching profiles: ${allErr.message}`);
+        setError('Database error: ' + allErr.message);
         setBusy(false);
         return;
       }
 
-      console.log('All accessible profiles:', allProfiles);
-      const matchingProfile = allProfiles?.find(p => p.partner_code?.toUpperCase() === normalizedCode);
+      console.log('✅ Profiles fetched:', allProfiles?.length || 0);
+      console.log('📋 All profiles:', allProfiles);
       
+      // Log all codes for debugging
+      const allCodes = allProfiles?.map(p => `${p.partner_code} (${p.email})`).join(', ');
+      setDebug(`All codes in DB: ${allCodes || 'None found'} | Searching for: ${normalizedCode}`);
+      console.log('📊 All available codes:', allCodes);
+
+      if (!allProfiles || allProfiles.length === 0) {
+        setError('No profiles in database yet. Please wait for others to sign up.');
+        setBusy(false);
+        return;
+      }
+
+      // Search for matching profile
+      const matchingProfile = allProfiles.find(p => {
+        const pCode = p.partner_code?.trim().toUpperCase();
+        const matches = pCode === normalizedCode;
+        console.log(`Comparing "${pCode}" with "${normalizedCode}": ${matches}`);
+        return matches;
+      });
+
       if (!matchingProfile) {
+        console.log('❌ No matching profile found');
         setError('No one has that code. Check the spelling and try again.');
         setBusy(false);
         return;
       }
 
-      console.log('Found partner:', matchingProfile);
+      console.log('✅ Found matching profile:', matchingProfile);
 
       if (matchingProfile.paired_with) { 
         setError('That person is already paired'); 
@@ -66,37 +90,39 @@ export default function PairingScreen() {
       }
 
       // Update current user's paired_with
+      console.log('🔄 Updating current user...');
       const { error: updateErr } = await supabase
         .from('profiles')
         .update({ paired_with: matchingProfile.id })
         .eq('id', profile!.id);
         
       if (updateErr) { 
-        console.error('Update error:', updateErr);
+        console.error('❌ Update error:', updateErr);
         setError('Error pairing: ' + updateErr.message); 
         setBusy(false); 
         return; 
       }
 
       // Update partner's paired_with
+      console.log('🔄 Updating partner...');
       const { error: partnerUpdateErr } = await supabase
         .from('profiles')
         .update({ paired_with: profile!.id })
         .eq('id', matchingProfile.id);
         
       if (partnerUpdateErr) {
-        console.error('Partner update error:', partnerUpdateErr);
+        console.error('❌ Partner update error:', partnerUpdateErr);
         setError('Error completing pair: ' + partnerUpdateErr.message);
         setBusy(false);
         return;
       }
 
-      console.log('Pairing successful!');
+      console.log('✅ Pairing successful!');
       await refreshProfile();
       setBusy(false);
       navigate('/');
     } catch (err) {
-      console.error('Unexpected error:', err);
+      console.error('❌ Unexpected error:', err);
       setError('Unexpected error. Try again.');
       setBusy(false);
     }
@@ -156,6 +182,7 @@ export default function PairingScreen() {
         </div>
 
         {error && <p className="mt-4 rounded-xl bg-error-50 px-4 py-3 text-sm text-error-600 animate-scale-in">{error}</p>}
+        {debug && <p className="mt-2 rounded-xl bg-blue-50 px-3 py-2 text-xs text-blue-600 break-words">{debug}</p>}
 
         <button onClick={handlePair} disabled={busy} className="btn-primary mt-6 w-full py-3.5 group">
           {busy ? 'Connecting...' : 'Pair up'}
