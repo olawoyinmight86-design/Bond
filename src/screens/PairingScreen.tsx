@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
@@ -6,7 +6,7 @@ import { BraceletLogo } from '../components/BraceletLogo';
 import { Copy, Check, ArrowRight } from 'lucide-react';
 
 export default function PairingScreen() {
-  const { profile, refreshProfile } = useAuth();
+  const { profile, refreshProfile, user } = useAuth();
   const navigate = useNavigate();
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -16,6 +16,23 @@ export default function PairingScreen() {
 
   const partnerCode = profile?.partner_code ?? '';
 
+  // Real-time sync subscription
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const subscription = supabase
+      .from('profiles')
+      .on('*', (payload) => {
+        console.log('🔄 Real-time update received:', payload);
+        refreshProfile();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [user?.id, refreshProfile]);
+
   const handleCopy = async () => {
     await navigator.clipboard.writeText(partnerCode);
     setCopied(true);
@@ -24,106 +41,105 @@ export default function PairingScreen() {
 
   const handlePair = async () => {
     if (!code.trim()) { setError("Enter your partner's code"); return; }
+    if (!user?.id) { setError('Not logged in'); return; }
+    if (!profile?.id) { setError('Profile not loaded'); return; }
+
     setBusy(true);
     setError(null);
     setDebug(null);
 
     const normalizedCode = code.trim().toUpperCase();
+    console.log('🔍 Current user ID:', user.id);
+    console.log('🔍 Current user profile:', profile);
     console.log('🔍 Searching for partner code:', normalizedCode);
 
     try {
-      // Fetch all profiles with detailed logging
-      console.log('📡 Fetching all profiles...');
-      const { data: allProfiles, error: allErr } = await supabase
+      // Step 1: Fetch ALL profiles
+      const { data: allProfiles, error: fetchErr } = await supabase
         .from('profiles')
-        .select('id, partner_code, paired_with, email');
+        .select('id, email, partner_code, paired_with');
 
-      if (allErr) {
-        console.error('❌ Error fetching profiles:', allErr);
-        setDebug(`Error fetching profiles: ${allErr.message}`);
-        setError('Database error: ' + allErr.message);
+      if (fetchErr) {
+        console.error('❌ Fetch error:', fetchErr);
+        setError('Database error: ' + fetchErr.message);
+        setDebug(`Fetch error: ${fetchErr.message}`);
         setBusy(false);
         return;
       }
 
-      console.log('✅ Profiles fetched:', allProfiles?.length || 0);
-      console.log('📋 All profiles:', allProfiles);
-      
-      // Log all codes for debugging
-      const allCodes = allProfiles?.map(p => `${p.partner_code} (${p.email})`).join(', ');
-      setDebug(`All codes in DB: ${allCodes || 'None found'} | Searching for: ${normalizedCode}`);
-      console.log('📊 All available codes:', allCodes);
+      console.log('✅ All profiles fetched:', allProfiles);
 
       if (!allProfiles || allProfiles.length === 0) {
-        setError('No profiles in database yet. Please wait for others to sign up.');
+        setError('No profiles exist yet');
         setBusy(false);
         return;
       }
 
-      // Search for matching profile
+      // Log what we found
+      const profilesList = allProfiles.map(p => `${p.partner_code} (${p.id})`).join(', ');
+      setDebug(`Database has: ${profilesList} | Looking for: ${normalizedCode}`);
+      console.log('📊 All codes:', profilesList);
+
+      // Step 2: Find matching profile
       const matchingProfile = allProfiles.find(p => {
         const pCode = p.partner_code?.trim().toUpperCase();
-        const matches = pCode === normalizedCode;
-        console.log(`Comparing "${pCode}" with "${normalizedCode}": ${matches}`);
-        return matches;
+        console.log(`Comparing: "${pCode}" === "${normalizedCode}" ? ${pCode === normalizedCode}`);
+        return pCode === normalizedCode;
       });
 
       if (!matchingProfile) {
-        console.log('❌ No matching profile found');
-        setError('No one has that code. Check the spelling and try again.');
+        setError(`No one has that code. Available: ${allProfiles.map(p => p.partner_code).join(', ')}`);
         setBusy(false);
         return;
       }
 
       console.log('✅ Found matching profile:', matchingProfile);
 
-      if (matchingProfile.paired_with) { 
-        setError('That person is already paired'); 
-        setBusy(false); 
-        return; 
-      }
-      
-      if (matchingProfile.id === profile?.id) { 
-        setError("That's your own code"); 
-        setBusy(false); 
-        return; 
+      if (matchingProfile.id === user.id) {
+        setError("Can't pair with yourself!");
+        setBusy(false);
+        return;
       }
 
-      // Update current user's paired_with
+      if (matchingProfile.paired_with) {
+        setError('That person is already paired');
+        setBusy(false);
+        return;
+      }
+
+      // Step 3: Update BOTH profiles to pair them
       console.log('🔄 Updating current user...');
-      const { error: updateErr } = await supabase
+      const { error: err1 } = await supabase
         .from('profiles')
         .update({ paired_with: matchingProfile.id })
-        .eq('id', profile!.id);
-        
-      if (updateErr) { 
-        console.error('❌ Update error:', updateErr);
-        setError('Error pairing: ' + updateErr.message); 
-        setBusy(false); 
-        return; 
+        .eq('id', user.id);
+
+      if (err1) {
+        console.error('❌ Error updating current user:', err1);
+        setError('Error: ' + err1.message);
+        setBusy(false);
+        return;
       }
 
-      // Update partner's paired_with
       console.log('🔄 Updating partner...');
-      const { error: partnerUpdateErr } = await supabase
+      const { error: err2 } = await supabase
         .from('profiles')
-        .update({ paired_with: profile!.id })
+        .update({ paired_with: user.id })
         .eq('id', matchingProfile.id);
-        
-      if (partnerUpdateErr) {
-        console.error('❌ Partner update error:', partnerUpdateErr);
-        setError('Error completing pair: ' + partnerUpdateErr.message);
+
+      if (err2) {
+        console.error('❌ Error updating partner:', err2);
+        setError('Error: ' + err2.message);
         setBusy(false);
         return;
       }
 
       console.log('✅ Pairing successful!');
       await refreshProfile();
-      setBusy(false);
       navigate('/');
     } catch (err) {
       console.error('❌ Unexpected error:', err);
-      setError('Unexpected error. Try again.');
+      setError('Unexpected error');
       setBusy(false);
     }
   };
@@ -181,8 +197,8 @@ export default function PairingScreen() {
           />
         </div>
 
-        {error && <p className="mt-4 rounded-xl bg-error-50 px-4 py-3 text-sm text-error-600 animate-scale-in">{error}</p>}
         {debug && <p className="mt-2 rounded-xl bg-blue-50 px-3 py-2 text-xs text-blue-600 break-words">{debug}</p>}
+        {error && <p className="mt-4 rounded-xl bg-error-50 px-4 py-3 text-sm text-error-600 animate-scale-in">{error}</p>}
 
         <button onClick={handlePair} disabled={busy} className="btn-primary mt-6 w-full py-3.5 group">
           {busy ? 'Connecting...' : 'Pair up'}
