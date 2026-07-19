@@ -26,14 +26,18 @@ export default function PairingScreen() {
     setBusy(true);
     setError(null);
 
+    // Normalize code to uppercase for consistent matching
+    const normalizedCode = code.trim().toUpperCase();
+
+    // First, query with case-insensitive search to handle any casing issues
     const { data: partner, error: findErr } = await supabase
       .from('profiles')
-      .select('id, paired_with')
-      .eq('partner_code', code.trim().toUpperCase())
+      .select('id, paired_with, partner_code')
+      .or(`partner_code.eq.${normalizedCode},partner_code.ilike.${normalizedCode}`)
       .maybeSingle();
 
     if (findErr) { setError(findErr.message); setBusy(false); return; }
-    if (!partner) { setError('No one has that code'); setBusy(false); return; }
+    if (!partner) { setError('No one has that code. Check the spelling and try again.'); setBusy(false); return; }
     if (partner.paired_with) { setError('That person is already paired'); setBusy(false); return; }
     if (partner.id === profile?.id) { setError("That's your own code"); setBusy(false); return; }
 
