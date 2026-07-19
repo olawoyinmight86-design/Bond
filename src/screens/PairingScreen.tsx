@@ -11,7 +11,6 @@ export default function PairingScreen() {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [debug, setDebug] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const partnerCode = profile?.partner_code ?? '';
@@ -26,58 +25,41 @@ export default function PairingScreen() {
     if (!code.trim()) { setError("Enter your partner's code"); return; }
     setBusy(true);
     setError(null);
-    setDebug(null);
 
-    // Normalize code to uppercase for consistent matching
     const normalizedCode = code.trim().toUpperCase();
-    setDebug(`Searching for code: ${normalizedCode}`);
+    console.log('Searching for partner code:', normalizedCode);
 
     try {
-      // First, let's see all partner codes in the database (debug)
+      // Query without any filters first to test RLS
       const { data: allProfiles, error: allErr } = await supabase
         .from('profiles')
-        .select('id, partner_code, paired_with')
-        .limit(10);
+        .select('id, partner_code, paired_with, email');
 
       if (allErr) {
         console.error('Error fetching all profiles:', allErr);
-        setDebug(`Debug error: ${allErr.message}`);
-      } else {
-        console.log('All profiles with codes:', allProfiles);
-        const codesFound = allProfiles?.map(p => p.partner_code).join(', ') || 'none';
-        setDebug(`Codes in database: ${codesFound}`);
+        setError('Permission error: ' + allErr.message);
+        setBusy(false);
+        return;
       }
 
-      // Now query with exact match
-      const { data: partner, error: findErr } = await supabase
-        .from('profiles')
-        .select('id, paired_with, partner_code')
-        .eq('partner_code', normalizedCode)
-        .maybeSingle();
-
-      console.log('Partner query result:', { partner, findErr });
-      setDebug(prev => prev ? `${prev} | Query result: ${partner ? 'Found' : 'Not found'}` : `Query result: ${partner ? 'Found' : 'Not found'}`);
-
-      if (findErr) { 
-        console.error('Partner lookup error:', findErr);
-        setError('Database error: ' + findErr.message); 
-        setBusy(false); 
-        return; 
-      }
+      console.log('All accessible profiles:', allProfiles);
+      const matchingProfile = allProfiles?.find(p => p.partner_code?.toUpperCase() === normalizedCode);
       
-      if (!partner) { 
-        setError('No one has that code. Check the spelling and try again.'); 
-        setBusy(false); 
-        return; 
+      if (!matchingProfile) {
+        setError('No one has that code. Check the spelling and try again.');
+        setBusy(false);
+        return;
       }
-      
-      if (partner.paired_with) { 
+
+      console.log('Found partner:', matchingProfile);
+
+      if (matchingProfile.paired_with) { 
         setError('That person is already paired'); 
         setBusy(false); 
         return; 
       }
       
-      if (partner.id === profile?.id) { 
+      if (matchingProfile.id === profile?.id) { 
         setError("That's your own code"); 
         setBusy(false); 
         return; 
@@ -86,7 +68,7 @@ export default function PairingScreen() {
       // Update current user's paired_with
       const { error: updateErr } = await supabase
         .from('profiles')
-        .update({ paired_with: partner.id })
+        .update({ paired_with: matchingProfile.id })
         .eq('id', profile!.id);
         
       if (updateErr) { 
@@ -100,7 +82,7 @@ export default function PairingScreen() {
       const { error: partnerUpdateErr } = await supabase
         .from('profiles')
         .update({ paired_with: profile!.id })
-        .eq('id', partner.id);
+        .eq('id', matchingProfile.id);
         
       if (partnerUpdateErr) {
         console.error('Partner update error:', partnerUpdateErr);
@@ -109,6 +91,7 @@ export default function PairingScreen() {
         return;
       }
 
+      console.log('Pairing successful!');
       await refreshProfile();
       setBusy(false);
       navigate('/');
@@ -173,7 +156,6 @@ export default function PairingScreen() {
         </div>
 
         {error && <p className="mt-4 rounded-xl bg-error-50 px-4 py-3 text-sm text-error-600 animate-scale-in">{error}</p>}
-        {debug && <p className="mt-2 rounded-xl bg-blue-50 px-4 py-2 text-xs text-blue-600">{debug}</p>}
 
         <button onClick={handlePair} disabled={busy} className="btn-primary mt-6 w-full py-3.5 group">
           {busy ? 'Connecting...' : 'Pair up'}
