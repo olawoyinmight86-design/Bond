@@ -20,16 +20,17 @@ export default function PairingScreen() {
   useEffect(() => {
     if (!user?.id) return;
 
-    const subscription = supabase
-      .from('profiles')
-      .on('*', (payload) => {
-        console.log('🔄 Real-time update received:', payload);
-        refreshProfile();
-      })
+    const channel = supabase
+      .channel('pairing-profile-changes')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
+        () => { refreshProfile(); }
+      )
       .subscribe();
 
     return () => {
-      subscription.unsubscribe();
+      supabase.removeChannel(channel);
     };
   }, [user?.id, refreshProfile]);
 
@@ -49,97 +50,28 @@ export default function PairingScreen() {
     setDebug(null);
 
     const normalizedCode = code.trim().toUpperCase();
-    console.log('🔍 Current user ID:', user.id);
-    console.log('🔍 Current user profile:', profile);
-    console.log('🔍 Searching for partner code:', normalizedCode);
 
     try {
-      // Step 1: Fetch ALL profiles
-      const { data: allProfiles, error: fetchErr } = await supabase
-        .from('profiles')
-        .select('id, email, partner_code, paired_with');
-
-      if (fetchErr) {
-        console.error('❌ Fetch error:', fetchErr);
-        setError('Database error: ' + fetchErr.message);
-        setDebug(`Fetch error: ${fetchErr.message}`);
-        setBusy(false);
-        return;
-      }
-
-      console.log('✅ All profiles fetched:', allProfiles);
-
-      if (!allProfiles || allProfiles.length === 0) {
-        setError('No profiles exist yet');
-        setBusy(false);
-        return;
-      }
-
-      // Log what we found
-      const profilesList = allProfiles.map(p => `${p.partner_code} (${p.id})`).join(', ');
-      setDebug(`Database has: ${profilesList} | Looking for: ${normalizedCode}`);
-      console.log('📊 All codes:', profilesList);
-
-      // Step 2: Find matching profile
-      const matchingProfile = allProfiles.find(p => {
-        const pCode = p.partner_code?.trim().toUpperCase();
-        console.log(`Comparing: "${pCode}" === "${normalizedCode}" ? ${pCode === normalizedCode}`);
-        return pCode === normalizedCode;
+      const { data, error: rpcErr } = await supabase.rpc('pair_with_code', {
+        input_code: normalizedCode,
       });
 
-      if (!matchingProfile) {
-        setError(`No one has that code. Available: ${allProfiles.map(p => p.partner_code).join(', ')}`);
+      if (rpcErr) {
+        setError('Database error: ' + rpcErr.message);
         setBusy(false);
         return;
       }
 
-      console.log('✅ Found matching profile:', matchingProfile);
-
-      if (matchingProfile.id === user.id) {
-        setError("Can't pair with yourself!");
+      if (!data?.success) {
+        setError(data?.error ?? 'Could not pair. Try again.');
         setBusy(false);
         return;
       }
 
-      if (matchingProfile.paired_with) {
-        setError('That person is already paired');
-        setBusy(false);
-        return;
-      }
-
-      // Step 3: Update BOTH profiles to pair them
-      console.log('🔄 Updating current user...');
-      const { error: err1 } = await supabase
-        .from('profiles')
-        .update({ paired_with: matchingProfile.id })
-        .eq('id', user.id);
-
-      if (err1) {
-        console.error('❌ Error updating current user:', err1);
-        setError('Error: ' + err1.message);
-        setBusy(false);
-        return;
-      }
-
-      console.log('🔄 Updating partner...');
-      const { error: err2 } = await supabase
-        .from('profiles')
-        .update({ paired_with: user.id })
-        .eq('id', matchingProfile.id);
-
-      if (err2) {
-        console.error('❌ Error updating partner:', err2);
-        setError('Error: ' + err2.message);
-        setBusy(false);
-        return;
-      }
-
-      console.log('✅ Pairing successful!');
       await refreshProfile();
       navigate('/');
     } catch (err) {
-      console.error('❌ Unexpected error:', err);
-      setError('Unexpected error');
+      setError('Unexpected error. Check your connection and try again.');
       setBusy(false);
     }
   };

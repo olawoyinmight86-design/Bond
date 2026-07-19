@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './lib/auth';
+import { startAutoSync } from './lib/syncEngine';
 import { BraceletLogo } from './components/BraceletLogo';
 import AuthScreen from './screens/AuthScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
@@ -16,6 +17,7 @@ export default function App() {
   const { init, initialized, loading, session, profile } = useAuth();
 
   useEffect(() => { init(); }, [init]);
+  useEffect(() => startAutoSync(), []);
 
   if (!initialized || loading) {
     return (
