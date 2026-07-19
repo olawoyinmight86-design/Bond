@@ -41,8 +41,8 @@ export const useAuth = create<AuthState>((set, get) => ({
       if (session?.user) {
         await get().refreshProfile();
       }
-    } catch {
-      // Network failure — try cached profile
+    } catch (err) {
+      console.error('Auth init error:', err);
       const cached = cacheGet<Profile>('profile');
       set({ loading: false, initialized: true, profile: cached });
     }
@@ -56,7 +56,6 @@ export const useAuth = create<AuthState>((set, get) => ({
   signUp: async (email, password) => {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) return { error: error.message, needsConfirmation: false };
-    // If no session returned, email confirmation is required
     if (!data.session) {
       return { error: null, needsConfirmation: true };
     }
@@ -72,47 +71,77 @@ export const useAuth = create<AuthState>((set, get) => ({
   refreshProfile: async () => {
     const user = get().user;
     if (!user) return;
-    const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
-    if (error) {
-      // Fall back to cached profile if network fails
-      const cached = cacheGet<Profile>('profile');
-      if (cached) set({ profile: cached });
-      return;
-    }
-    if (!data) {
-      // Trigger should have created it, but fallback to client-side upsert
-      const { data: created, error: createErr } = await supabase
-        .from('profiles')
-        .upsert({ id: user.id, email: user.email })
-        .select('*')
-        .maybeSingle();
-      if (createErr) {
+    
+    try {
+      const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+      
+      if (error) {
+        console.error('Profile fetch error:', error);
         const cached = cacheGet<Profile>('profile');
         if (cached) set({ profile: cached });
         return;
       }
-      if (created) {
-        const profile = created as Profile;
-        cacheSet('profile', profile);
-        set({ profile });
+      
+      if (!data) {
+        console.warn('Profile does not exist, attempting to create...');
+        
+        // Generate a random partner code
+        const randomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        
+        const { data: created, error: createErr } = await supabase
+          .from('profiles')
+          .insert({ 
+            id: user.id, 
+            email: user.email,
+            partner_code: randomCode 
+          })
+          .select('*')
+          .maybeSingle();
+        
+        if (createErr) {
+          console.error('Profile creation error:', createErr);
+          const cached = cacheGet<Profile>('profile');
+          if (cached) set({ profile: cached });
+          return;
+        }
+        
+        if (created) {
+          const profile = created as Profile;
+          cacheSet('profile', profile);
+          set({ profile });
+        }
+        return;
       }
-      return;
+      
+      const profile = data as Profile;
+      cacheSet('profile', profile);
+      set({ profile });
+    } catch (err) {
+      console.error('Unexpected error in refreshProfile:', err);
+      const cached = cacheGet<Profile>('profile');
+      if (cached) set({ profile: cached });
     }
-    const profile = data as Profile;
-    cacheSet('profile', profile);
-    set({ profile });
   },
 
   updateProfile: async (updates) => {
     const user = get().user;
     if (!user) return { error: 'Not authenticated' };
-    const { data, error } = await supabase.from('profiles').update(updates).eq('id', user.id).select('*').maybeSingle();
-    if (error) return { error: error.message };
-    if (data) {
-      const profile = data as Profile;
-      cacheSet('profile', profile);
-      set({ profile });
+    
+    try {
+      const { data, error } = await supabase.from('profiles').update(updates).eq('id', user.id).select('*').maybeSingle();
+      if (error) {
+        console.error('Profile update error:', error);
+        return { error: error.message };
+      }
+      if (data) {
+        const profile = data as Profile;
+        cacheSet('profile', profile);
+        set({ profile });
+      }
+      return { error: null };
+    } catch (err) {
+      console.error('Unexpected error in updateProfile:', err);
+      return { error: 'Unexpected error' };
     }
-    return { error: null };
   },
 }));
