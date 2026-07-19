@@ -11,6 +11,7 @@ export default function PairingScreen() {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [debug, setDebug] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const partnerCode = profile?.partner_code ?? '';
@@ -25,17 +26,37 @@ export default function PairingScreen() {
     if (!code.trim()) { setError("Enter your partner's code"); return; }
     setBusy(true);
     setError(null);
+    setDebug(null);
 
     // Normalize code to uppercase for consistent matching
     const normalizedCode = code.trim().toUpperCase();
+    setDebug(`Searching for code: ${normalizedCode}`);
 
     try {
-      // Query with exact match (case-sensitive at DB level, but we uppercase both)
+      // First, let's see all partner codes in the database (debug)
+      const { data: allProfiles, error: allErr } = await supabase
+        .from('profiles')
+        .select('id, partner_code, paired_with')
+        .limit(10);
+
+      if (allErr) {
+        console.error('Error fetching all profiles:', allErr);
+        setDebug(`Debug error: ${allErr.message}`);
+      } else {
+        console.log('All profiles with codes:', allProfiles);
+        const codesFound = allProfiles?.map(p => p.partner_code).join(', ') || 'none';
+        setDebug(`Codes in database: ${codesFound}`);
+      }
+
+      // Now query with exact match
       const { data: partner, error: findErr } = await supabase
         .from('profiles')
         .select('id, paired_with, partner_code')
         .eq('partner_code', normalizedCode)
         .maybeSingle();
+
+      console.log('Partner query result:', { partner, findErr });
+      setDebug(prev => prev ? `${prev} | Query result: ${partner ? 'Found' : 'Not found'}` : `Query result: ${partner ? 'Found' : 'Not found'}`);
 
       if (findErr) { 
         console.error('Partner lookup error:', findErr);
@@ -152,6 +173,7 @@ export default function PairingScreen() {
         </div>
 
         {error && <p className="mt-4 rounded-xl bg-error-50 px-4 py-3 text-sm text-error-600 animate-scale-in">{error}</p>}
+        {debug && <p className="mt-2 rounded-xl bg-blue-50 px-4 py-2 text-xs text-blue-600">{debug}</p>}
 
         <button onClick={handlePair} disabled={busy} className="btn-primary mt-6 w-full py-3.5 group">
           {busy ? 'Connecting...' : 'Pair up'}
