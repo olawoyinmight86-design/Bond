@@ -11,6 +11,7 @@ export default function SettingsScreen() {
   const navigate = useNavigate();
   const [name, setName] = useState(profile?.display_name ?? '');
   const [emoji, setEmoji] = useState(profile?.avatar_emoji ?? AVATAR_EMOJIS[0]);
+  const [phone, setPhone] = useState(profile?.phone_number ?? '');
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [pushStatus, setPushStatus] = useState<'idle' | 'checking' | 'on' | 'off' | 'unsupported'>('idle');
@@ -50,7 +51,7 @@ export default function SettingsScreen() {
 
   const handleSave = async () => {
     setBusy(true);
-    await updateProfile({ display_name: name.trim(), avatar_emoji: emoji });
+    await updateProfile({ display_name: name.trim(), avatar_emoji: emoji, phone_number: phone.trim() || null });
     setBusy(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -70,6 +71,11 @@ export default function SettingsScreen() {
           <div>
             <label className="label" htmlFor="name">Display name</label>
             <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} className="input" />
+          </div>
+          <div>
+            <label className="label" htmlFor="phone">Phone number <span className="normal-case text-ink-300">(optional)</span></label>
+            <input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="input" placeholder="+1 555 123 4567" />
+            <p className="mt-1.5 text-xs text-ink-400">Lets Bond offer "send as text" if a message can't reach the internet — never shown anywhere except to your paired partner.</p>
           </div>
           <div>
             <span className="label">Avatar</span>

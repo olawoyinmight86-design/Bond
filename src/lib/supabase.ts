@@ -30,6 +30,7 @@ export type Profile = {
   paired_with: string | null;
   onboarding_complete: boolean;
   created_at: string;
+  phone_number?: string | null;
 };
 
 export type TimelineEntry = {

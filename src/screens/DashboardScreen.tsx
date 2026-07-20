@@ -19,6 +19,7 @@ export default function DashboardScreen() {
   });
   const [momentCount, setMomentCount] = useState(() => cacheGet<number>('moment_count') ?? 0);
   const [recentMood, setRecentMood] = useState<string | null>(() => cacheGet<string>('recent_mood') ?? null);
+  const [streak, setStreak] = useState(() => cacheGet<number>('streak') ?? 0);
   const [aiTip, setAiTip] = useState<string | null>(() => cacheGet<string>('ai_tip'));
   const [loadingTip, setLoadingTip] = useState(false);
 
@@ -45,6 +46,12 @@ export default function DashboardScreen() {
       const mood = moodData?.mood ?? null;
       setRecentMood(mood);
       cacheSet('recent_mood', mood);
+
+      const { data: streakData } = await supabase.rpc('get_streak');
+      if (typeof streakData === 'number') {
+        setStreak(streakData);
+        cacheSet('streak', streakData);
+      }
     } catch {
       // offline — keep cached data
     }
@@ -106,6 +113,12 @@ export default function DashboardScreen() {
                 {partner.online ? 'Online now' : partner.lastSeen ? `Last seen ${formatDistanceToNow(new Date(partner.lastSeen))} ago` : 'Offline'}
               </p>
             </div>
+            {streak > 0 && (
+              <div className="flex flex-col items-center rounded-2xl bg-white/70 px-3 py-2">
+                <span className="text-lg leading-none">🔥</span>
+                <span className="mt-1 text-xs font-bold text-ink-800">{streak}</span>
+              </div>
+            )}
           </div>
         </div>
       ) : (

@@ -2,15 +2,19 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '../lib/auth';
 import { supabase, cacheGet, type Profile } from '../lib/supabase';
 import { format } from 'date-fns';
-import { Send, Mic, Image as ImageIcon, PenTool, Clock, CheckCheck } from 'lucide-react';
+import { Send, Mic, Image as ImageIcon, PenTool, Clock, CheckCheck, ChevronUp, MessageSquareText } from 'lucide-react';
 import { useOnlineStatus } from '../lib/useOnlineStatus';
 import { composeMessage, onQueueChange } from '../lib/syncEngine';
 import { setBadgeCount } from '../lib/badge';
-import { getLocalMessages, cacheLocalMessage, type LocalMessage } from '../lib/offlineDB';
+import { getLocalMessages, getOutbox, cacheLocalMessage, type LocalMessage } from '../lib/offlineDB';
+import { compressImage } from '../lib/imageCompress';
+import { buildSmsFallbackLink, STUCK_THRESHOLD_ATTEMPTS } from '../lib/smsFallback';
 import VoiceRecorder from '../components/VoiceRecorder';
 import DrawPad from '../components/DrawPad';
 
 type Mode = 'text' | 'voice' | 'draw';
+const PAGE_SIZE = 40;
+const QUICK_REACTIONS = ['❤️', '😂', '😮', '🥺', '👍'];
 
 export default function ChatScreen() {
   const { profile } = useAuth();
@@ -22,12 +26,21 @@ export default function ChatScreen() {
     const cached = cacheGet<{ profile: Profile | null }>('partner_data');
     return cached?.profile?.display_name ?? 'Partner';
   });
+  const [partnerPhone, setPartnerPhone] = useState<string | null>(null);
+  const [partnerTyping, setPartnerTyping] = useState(false);
+  const [reactionPickerFor, setReactionPickerFor] = useState<string | null>(null);
+  const [hasMoreHistory, setHasMoreHistory] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [stuckCount, setStuckCount] = useState(0);
   const endRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const typingTimeoutRef = useRef<number | null>(null);
+  const lastTypingSentRef = useRef(0);
 
   const partnerId = profile?.paired_with ?? '';
 
-  // Load everything from the local device instantly — zero network needed.
   const loadLocal = useCallback(async () => {
     const local = await getLocalMessages();
     setMessages(local);
@@ -38,10 +51,21 @@ export default function ChatScreen() {
     const unsubscribe = onQueueChange(loadLocal);
     return () => { unsubscribe(); };
   }, [loadLocal]);
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
 
-  // When online, pull anything the partner sent while we were away, and
-  // mirror it into the local cache so it's there next time we're offline.
+  // Watch for anything stuck offline too long — signal we might have cell
+  // signal but no data, and offer the SMS fallback.
+  useEffect(() => {
+    const checkStuck = async () => {
+      const outbox = await getOutbox();
+      setStuckCount(outbox.filter((o) => o.type === 'text' && o.attempts >= STUCK_THRESHOLD_ATTEMPTS).length);
+    };
+    checkStuck();
+    const unsubscribe = onQueueChange(checkStuck);
+    const interval = setInterval(checkStuck, 15_000);
+    return () => { unsubscribe(); clearInterval(interval); };
+  }, []);
+
   const syncFromServer = useCallback(async () => {
     if (!profile?.id || !partnerId || !online) return;
     try {
@@ -49,10 +73,13 @@ export default function ChatScreen() {
         .from('messages')
         .select('*')
         .or(`sender_id.eq.${profile.id},recipient_id.eq.${profile.id}`)
-        .order('created_at', { ascending: true })
-        .limit(200);
+        .order('created_at', { ascending: false })
+        .limit(PAGE_SIZE);
 
-      for (const row of (data ?? []) as any[]) {
+      const rows = (data ?? []).reverse();
+      setHasMoreHistory(rows.length === PAGE_SIZE);
+
+      for (const row of rows as any[]) {
         let media_url: string | undefined;
         if (row.media_path) {
           const { data: signed } = await supabase.storage.from('chat-media').createSignedUrl(row.media_path, 60 * 60 * 24 * 7);
@@ -70,12 +97,14 @@ export default function ChatScreen() {
           created_at: row.created_at,
           pending: false,
           read_at: row.read_at,
+          reactions: row.reactions ?? {},
         });
       }
       await loadLocal();
 
-      const { data: partner } = await supabase.from('profiles').select('display_name').eq('id', partnerId).maybeSingle();
+      const { data: partner } = await supabase.from('profiles').select('display_name, phone_number').eq('id', partnerId).maybeSingle();
       if (partner?.display_name) setPartnerName(partner.display_name);
+      setPartnerPhone(partner?.phone_number ?? null);
     } catch {
       // offline — local cache already has everything we've seen before
     }
@@ -83,7 +112,42 @@ export default function ChatScreen() {
 
   useEffect(() => { syncFromServer(); }, [syncFromServer]);
 
-  // Mark the partner's messages as read once we've actually viewed this screen.
+  // Load an older page of history on demand, so the chat opens instantly
+  // instead of always pulling your entire history every time.
+  const loadEarlier = async () => {
+    if (!profile?.id || !partnerId || !online || loadingMore) return;
+    const oldest = messages[0]?.created_at;
+    if (!oldest) return;
+    setLoadingMore(true);
+    try {
+      const { data } = await supabase
+        .from('messages')
+        .select('*')
+        .or(`sender_id.eq.${profile.id},recipient_id.eq.${profile.id}`)
+        .lt('created_at', oldest)
+        .order('created_at', { ascending: false })
+        .limit(PAGE_SIZE);
+
+      const rows = (data ?? []).reverse();
+      setHasMoreHistory(rows.length === PAGE_SIZE);
+      for (const row of rows as any[]) {
+        let media_url: string | undefined;
+        if (row.media_path) {
+          const { data: signed } = await supabase.storage.from('chat-media').createSignedUrl(row.media_path, 60 * 60 * 24 * 7);
+          media_url = signed?.signedUrl;
+        }
+        await cacheLocalMessage({
+          id: row.id, client_id: row.client_id ?? row.id, sender_id: row.sender_id, recipient_id: row.recipient_id,
+          type: row.type ?? 'text', content: row.content ?? '', media_url, duration_ms: row.duration_ms,
+          created_at: row.created_at, pending: false, read_at: row.read_at, reactions: row.reactions ?? {},
+        });
+      }
+      await loadLocal();
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
   useEffect(() => {
     if (!profile?.id || !partnerId || !online) return;
     supabase
@@ -97,19 +161,37 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (!profile?.id || !online) return;
-    const channel = supabase.channel('messages-changes').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => {
+    const channel = supabase.channel('messages-changes').on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
       syncFromServer();
     }).subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [profile?.id, online, syncFromServer]);
 
+  // Typing indicator — ephemeral, never touches the database.
+  useEffect(() => {
+    if (!profile?.id || !partnerId || !online) return;
+    const pairKey = [profile.id, partnerId].sort().join('-');
+    const channel = supabase.channel(`typing-${pairKey}`, { config: { broadcast: { self: false } } });
+    channel.on('broadcast', { event: 'typing' }, () => {
+      setPartnerTyping(true);
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = window.setTimeout(() => setPartnerTyping(false), 3000);
+    }).subscribe();
+    typingChannelRef.current = channel;
+    return () => { supabase.removeChannel(channel); typingChannelRef.current = null; };
+  }, [profile?.id, partnerId, online]);
+
+  const notifyTyping = () => {
+    if (!online || !typingChannelRef.current) return;
+    const now = Date.now();
+    if (now - lastTypingSentRef.current < 2000) return; // throttle
+    lastTypingSentRef.current = now;
+    typingChannelRef.current.send({ type: 'broadcast', event: 'typing', payload: {} });
+  };
+
   const send = async (payload: { type: 'text' | 'photo' | 'voice' | 'drawing'; content?: string; mediaBlob?: Blob; mediaMime?: string; durationMs?: number }) => {
     if (!profile?.id || !partnerId) return;
-    await composeMessage({
-      senderId: profile.id,
-      recipientId: partnerId,
-      ...payload,
-    });
+    await composeMessage({ senderId: profile.id, recipientId: partnerId, ...payload });
     setMode('text');
   };
 
@@ -120,10 +202,19 @@ export default function ChatScreen() {
     send({ type: 'text', content: text });
   };
 
-  const handlePhotoPicked = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoPicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) send({ type: 'photo', mediaBlob: file, mediaMime: file.type });
     e.target.value = '';
+    if (!file) return;
+    const compressed = await compressImage(file);
+    send({ type: 'photo', mediaBlob: compressed, mediaMime: 'image/jpeg' });
+  };
+
+  const toggleReaction = async (messageId: string, emoji: string) => {
+    setReactionPickerFor(null);
+    if (!online) return; // reactions need a live round trip — not worth queuing offline
+    await supabase.rpc('toggle_reaction', { message_id: messageId, emoji });
+    syncFromServer();
   };
 
   if (!profile) return null;
@@ -134,13 +225,31 @@ export default function ChatScreen() {
     <div className="flex h-[calc(100vh-13rem)] flex-col animate-fade-in">
       <div className="mb-4 flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-xl shadow-soft">💕</div>
-        <div>
+        <div className="min-w-0 flex-1">
           <h1 className="font-display text-lg text-ink-900">{partnerName}</h1>
-          <p className="text-xs text-ink-400">{online ? 'Your private conversation' : "Offline — it's saved on your phone and will deliver the moment you're back online"}</p>
+          <p className="truncate text-xs text-ink-400">
+            {partnerTyping ? <span className="text-brand-500 font-medium">typing...</span> : online ? 'Your private conversation' : "Offline — saved on your phone, sends the moment you're back"}
+          </p>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-1 no-scrollbar">
+      {stuckCount > 0 && partnerPhone && (
+        <a
+          href={buildSmsFallbackLink(partnerPhone, "Hey, I sent you a message on Bond but it's stuck — no internet on my end. Checking in via text!")}
+          className="mb-3 flex items-center gap-2 rounded-xl bg-accent-50 px-4 py-2.5 text-xs font-medium text-accent-700 animate-slide-up"
+        >
+          <MessageSquareText size={14} />
+          Message stuck with no internet — tap to send as a text instead
+        </a>
+      )}
+
+      <div ref={listRef} className="flex-1 overflow-y-auto space-y-1 no-scrollbar">
+        {hasMoreHistory && messages.length > 0 && (
+          <button onClick={loadEarlier} disabled={loadingMore || !online} className="mx-auto mb-3 flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-[11px] font-medium text-ink-400 shadow-soft disabled:opacity-50">
+            <ChevronUp size={12} />
+            {loadingMore ? 'Loading...' : 'Load earlier messages'}
+          </button>
+        )}
         {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-3">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-2xl">💭</div>
@@ -154,6 +263,7 @@ export default function ChatScreen() {
             lastDate = dateStr;
             const prevMsg = messages[i - 1];
             const sameSender = prevMsg && prevMsg.sender_id === msg.sender_id && format(new Date(prevMsg.created_at), 'yyyy-MM-dd') === dateStr;
+            const reactionEntries = Object.entries(msg.reactions ?? {});
 
             return (
               <div key={msg.client_id}>
@@ -163,24 +273,45 @@ export default function ChatScreen() {
                   </div>
                 )}
                 <div className={`flex ${own ? 'justify-end' : 'justify-start'} ${sameSender ? 'mt-0.5' : 'mt-2'}`}>
-                  <div className={`max-w-[75%] px-4 py-2.5 text-[15px] leading-relaxed transition-all ${own ? 'bg-brand-500 text-white rounded-2xl rounded-br-md' : 'bg-white text-ink-800 rounded-2xl rounded-bl-md shadow-soft'} ${sameSender ? (own ? 'rounded-br-sm' : 'rounded-bl-sm') : ''}`}>
-                    {msg.type === 'text' && <p>{msg.content}</p>}
-                    {msg.type === 'photo' && msg.media_url && (
-                      <img src={msg.media_url} alt="Shared photo" className="max-h-64 rounded-xl object-cover" />
-                    )}
-                    {msg.type === 'voice' && msg.media_url && (
-                      <audio controls src={msg.media_url} className="h-9 w-52" />
-                    )}
-                    {msg.type === 'drawing' && msg.media_url && (
-                      <img src={msg.media_url} alt="Handwritten note" className="max-h-64 rounded-xl bg-white object-contain" />
-                    )}
-                    <div className={`mt-1 flex items-center gap-1 text-[10px] ${own ? 'text-white/50' : 'text-ink-300'}`}>
-                      <span>{format(new Date(msg.created_at), 'h:mm a')}</span>
-                      {msg.pending && <Clock size={10} />}
-                      {own && !msg.pending && (
-                        <CheckCheck size={12} className={msg.read_at ? 'text-white' : 'text-white/40'} />
+                  <div className="relative">
+                    <button
+                      onDoubleClick={() => !msg.pending && msg.id && setReactionPickerFor(reactionPickerFor === msg.client_id ? null : msg.client_id)}
+                      className={`max-w-[75%] px-4 py-2.5 text-left text-[15px] leading-relaxed transition-all ${own ? 'bg-brand-500 text-white rounded-2xl rounded-br-md' : 'bg-white text-ink-800 rounded-2xl rounded-bl-md shadow-soft'} ${sameSender ? (own ? 'rounded-br-sm' : 'rounded-bl-sm') : ''}`}
+                    >
+                      {msg.type === 'text' && <p>{msg.content}</p>}
+                      {msg.type === 'photo' && msg.media_url && (
+                        <img src={msg.media_url} alt="Shared photo" className="max-h-64 rounded-xl object-cover" />
                       )}
-                    </div>
+                      {msg.type === 'voice' && msg.media_url && (
+                        <audio controls src={msg.media_url} className="h-9 w-52" />
+                      )}
+                      {msg.type === 'drawing' && msg.media_url && (
+                        <img src={msg.media_url} alt="Handwritten note" className="max-h-64 rounded-xl bg-white object-contain" />
+                      )}
+                      <div className={`mt-1 flex items-center gap-1 text-[10px] ${own ? 'text-white/50' : 'text-ink-300'}`}>
+                        <span>{format(new Date(msg.created_at), 'h:mm a')}</span>
+                        {msg.pending && <Clock size={10} />}
+                        {own && !msg.pending && (
+                          <CheckCheck size={12} className={msg.read_at ? 'text-white' : 'text-white/40'} />
+                        )}
+                      </div>
+                    </button>
+
+                    {reactionEntries.length > 0 && (
+                      <div className={`absolute -bottom-3 ${own ? 'right-2' : 'left-2'} flex gap-0.5 rounded-full bg-white px-1.5 py-0.5 text-xs shadow-soft`}>
+                        {reactionEntries.map(([uid, emoji]) => <span key={uid}>{emoji as string}</span>)}
+                      </div>
+                    )}
+
+                    {reactionPickerFor === msg.client_id && msg.id && (
+                      <div className={`absolute -top-11 ${own ? 'right-0' : 'left-0'} z-10 flex gap-1 rounded-full bg-white px-2 py-1.5 shadow-float animate-scale-in`}>
+                        {QUICK_REACTIONS.map((emoji) => (
+                          <button key={emoji} onClick={() => toggleReaction(msg.id, emoji)} className="text-lg transition-transform active:scale-125">
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -213,7 +344,8 @@ export default function ChatScreen() {
               <PenTool size={19} />
             </button>
             <input
-              type="text" value={input} onChange={(e) => setInput(e.target.value)}
+              type="text" value={input}
+              onChange={(e) => { setInput(e.target.value); notifyTyping(); }}
               onKeyDown={(e) => e.key === 'Enter' && handleSendText()}
               className="min-w-0 flex-1 bg-transparent px-2 py-2 text-[15px] text-ink-900 placeholder-ink-400 outline-none"
               placeholder="Message..."
