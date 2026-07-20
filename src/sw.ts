@@ -43,7 +43,7 @@ self.addEventListener('activate', (event) => { event.waitUntil(self.clients.clai
 // if the app is fully closed. Requires the send-push edge function to be
 // deployed (see PUSH_SETUP.md).
 self.addEventListener('push', (event: PushEvent) => {
-  let payload: { title?: string; body?: string; url?: string } = {};
+  let payload: { title?: string; body?: string; url?: string; image?: string } = {};
   try { payload = event.data?.json() ?? {}; } catch { /* non-JSON payload, ignore */ }
 
   const title = payload.title ?? 'Bond';
@@ -54,8 +54,9 @@ self.addEventListener('push', (event: PushEvent) => {
       body,
       icon: '/icon-192.png',
       badge: '/icon-192.png',
+      image: payload.image,
       data: { url: payload.url ?? '/chat' },
-    })
+    } as NotificationOptions & { image?: string })
   );
 });
 

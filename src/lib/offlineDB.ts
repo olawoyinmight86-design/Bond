@@ -36,6 +36,7 @@ export type LocalMessage = {
   duration_ms?: number;
   created_at: string;
   pending: boolean; // true until confirmed written to Supabase
+  read_at?: string | null;
 };
 
 function openDB(): Promise<IDBDatabase> {

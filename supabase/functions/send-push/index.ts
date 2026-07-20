@@ -21,7 +21,7 @@ webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate);
 
 Deno.serve(async (req) => {
   try {
-    const { recipient_id, sender_id, type } = await req.json();
+    const { recipient_id, sender_id, type, content, media_path } = await req.json();
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
@@ -43,12 +43,19 @@ Deno.serve(async (req) => {
     const label = type === 'photo' ? 'sent you a photo 📸'
       : type === 'voice' ? 'sent you a voice note 🎙️'
       : type === 'drawing' ? 'drew you something ✍️'
-      : 'sent you a message 💬';
+      : `says: "${(content ?? '').slice(0, 80)}"`;
+
+    let image: string | undefined;
+    if (type === 'photo' && media_path) {
+      const { data: signed } = await supabase.storage.from('chat-media').createSignedUrl(media_path, 60 * 60);
+      image = signed?.signedUrl;
+    }
 
     const payload = JSON.stringify({
       title: sender?.display_name ?? 'Bond',
       body: `${sender?.display_name ?? 'Your partner'} ${label}`,
       url: '/chat',
+      image,
     });
 
     let sent = 0;

@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../lib/auth';
 import { useNavigate } from 'react-router-dom';
 import { AVATAR_EMOJIS, avatarEmoji } from '../lib/emoji';
-import { Check, LogOut } from 'lucide-react';
+import { Check, LogOut, Bell, BellOff } from 'lucide-react';
+import { enablePushNotifications } from '../lib/push';
 
 export default function SettingsScreen() {
   const { profile, updateProfile, signOut } = useAuth();
@@ -11,6 +12,26 @@ export default function SettingsScreen() {
   const [emoji, setEmoji] = useState(profile?.avatar_emoji ?? AVATAR_EMOJIS[0]);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [pushStatus, setPushStatus] = useState<'idle' | 'checking' | 'on' | 'off' | 'unsupported'>('idle');
+  const [pushError, setPushError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!('Notification' in window)) { setPushStatus('unsupported'); return; }
+    setPushStatus(Notification.permission === 'granted' ? 'on' : 'off');
+  }, []);
+
+  const handleEnablePush = async () => {
+    if (!profile?.id) return;
+    setPushStatus('checking');
+    setPushError(null);
+    const result = await enablePushNotifications(profile.id);
+    if (result.ok) {
+      setPushStatus('on');
+    } else {
+      setPushStatus('off');
+      setPushError(result.reason ?? 'Could not enable notifications');
+    }
+  };
 
   const handleSave = async () => {
     setBusy(true);
@@ -59,6 +80,31 @@ export default function SettingsScreen() {
             </div>
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 text-2xl">{avatarEmoji(profile.avatar_emoji)}</div>
           </div>
+        </div>
+      </section>
+
+      <section>
+        <p className="mb-3 text-[13px] font-medium text-ink-400 uppercase tracking-wider">Notifications</p>
+        <div className="rounded-2xl bg-white p-5 shadow-soft">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-500">
+                {pushStatus === 'on' ? <Bell size={18} /> : <BellOff size={18} />}
+              </div>
+              <div>
+                <p className="text-sm font-medium text-ink-800">Instant alerts</p>
+                <p className="text-xs text-ink-400">Know the moment they message, even app closed</p>
+              </div>
+            </div>
+            {pushStatus === 'on' ? (
+              <span className="text-xs font-medium text-brand-500">On</span>
+            ) : (
+              <button onClick={handleEnablePush} disabled={pushStatus === 'checking' || pushStatus === 'unsupported'} className="rounded-xl bg-brand-500 px-4 py-2 text-xs font-medium text-white disabled:opacity-40">
+                {pushStatus === 'checking' ? 'Enabling...' : pushStatus === 'unsupported' ? 'Unsupported' : 'Enable'}
+              </button>
+            )}
+          </div>
+          {pushError && <p className="mt-3 text-xs text-error-500">{pushError}</p>}
         </div>
       </section>
 

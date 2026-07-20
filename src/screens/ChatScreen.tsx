@@ -2,9 +2,10 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '../lib/auth';
 import { supabase, cacheGet, type Profile } from '../lib/supabase';
 import { format } from 'date-fns';
-import { Send, Mic, Image as ImageIcon, PenTool, Clock } from 'lucide-react';
+import { Send, Mic, Image as ImageIcon, PenTool, Clock, CheckCheck } from 'lucide-react';
 import { useOnlineStatus } from '../lib/useOnlineStatus';
 import { composeMessage, onQueueChange } from '../lib/syncEngine';
+import { setBadgeCount } from '../lib/badge';
 import { getLocalMessages, cacheLocalMessage, type LocalMessage } from '../lib/offlineDB';
 import VoiceRecorder from '../components/VoiceRecorder';
 import DrawPad from '../components/DrawPad';
@@ -68,6 +69,7 @@ export default function ChatScreen() {
           duration_ms: row.duration_ms,
           created_at: row.created_at,
           pending: false,
+          read_at: row.read_at,
         });
       }
       await loadLocal();
@@ -80,6 +82,18 @@ export default function ChatScreen() {
   }, [profile?.id, partnerId, online, loadLocal]);
 
   useEffect(() => { syncFromServer(); }, [syncFromServer]);
+
+  // Mark the partner's messages as read once we've actually viewed this screen.
+  useEffect(() => {
+    if (!profile?.id || !partnerId || !online) return;
+    supabase
+      .from('messages')
+      .update({ read_at: new Date().toISOString() })
+      .eq('recipient_id', profile.id)
+      .eq('sender_id', partnerId)
+      .is('read_at', null)
+      .then(() => { setBadgeCount(0); });
+  }, [profile?.id, partnerId, online, messages.length]);
 
   useEffect(() => {
     if (!profile?.id || !online) return;
@@ -163,6 +177,9 @@ export default function ChatScreen() {
                     <div className={`mt-1 flex items-center gap-1 text-[10px] ${own ? 'text-white/50' : 'text-ink-300'}`}>
                       <span>{format(new Date(msg.created_at), 'h:mm a')}</span>
                       {msg.pending && <Clock size={10} />}
+                      {own && !msg.pending && (
+                        <CheckCheck size={12} className={msg.read_at ? 'text-white' : 'text-white/40'} />
+                      )}
                     </div>
                   </div>
                 </div>

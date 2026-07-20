@@ -119,7 +119,9 @@ BEGIN
     body := jsonb_build_object(
       'recipient_id', NEW.recipient_id,
       'sender_id', NEW.sender_id,
-      'type', NEW.type
+      'type', NEW.type,
+      'content', NEW.content,
+      'media_path', NEW.media_path
     )
   );
   RETURN NEW;
