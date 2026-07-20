@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../lib/auth';
 import { useNavigate } from 'react-router-dom';
 import { AVATAR_EMOJIS, avatarEmoji } from '../lib/emoji';
-import { Check, LogOut, Bell, BellOff } from 'lucide-react';
+import { Check, LogOut, Bell, BellOff, UserX } from 'lucide-react';
 import { enablePushNotifications } from '../lib/push';
+import { supabase } from '../lib/supabase';
 
 export default function SettingsScreen() {
-  const { profile, updateProfile, signOut } = useAuth();
+  const { profile, updateProfile, signOut, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState(profile?.display_name ?? '');
   const [emoji, setEmoji] = useState(profile?.avatar_emoji ?? AVATAR_EMOJIS[0]);
@@ -14,6 +15,20 @@ export default function SettingsScreen() {
   const [busy, setBusy] = useState(false);
   const [pushStatus, setPushStatus] = useState<'idle' | 'checking' | 'on' | 'off' | 'unsupported'>('idle');
   const [pushError, setPushError] = useState<string | null>(null);
+  const [confirmUnpair, setConfirmUnpair] = useState(false);
+  const [unpairing, setUnpairing] = useState(false);
+
+  const handleUnpair = async () => {
+    setUnpairing(true);
+    try {
+      const { data, error } = await supabase.rpc('unpair_me');
+      if (error || !data?.success) throw new Error(error?.message ?? 'Could not unpair');
+      await refreshProfile();
+    } catch {
+      setUnpairing(false);
+      setConfirmUnpair(false);
+    }
+  };
 
   useEffect(() => {
     if (!('Notification' in window)) { setPushStatus('unsupported'); return; }
@@ -105,6 +120,31 @@ export default function SettingsScreen() {
             )}
           </div>
           {pushError && <p className="mt-3 text-xs text-error-500">{pushError}</p>}
+        </div>
+      </section>
+
+      <section>
+        <p className="mb-3 text-[13px] font-medium text-ink-400 uppercase tracking-wider">Pairing</p>
+        <div className="overflow-hidden rounded-2xl bg-white shadow-soft">
+          {confirmUnpair ? (
+            <div className="px-5 py-4">
+              <p className="text-sm text-ink-700">Unpair from your partner? Your shared timeline, chat, and photos stay put — you can re-pair anytime.</p>
+              <div className="mt-3 flex gap-2">
+                <button onClick={() => setConfirmUnpair(false)} className="flex-1 rounded-xl bg-ink-50 py-2 text-xs font-medium text-ink-600">Never mind</button>
+                <button onClick={handleUnpair} disabled={unpairing} className="flex-1 rounded-xl bg-error-500 py-2 text-xs font-medium text-white disabled:opacity-50">
+                  {unpairing ? 'Unpairing...' : 'Yes, unpair'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => setConfirmUnpair(true)} className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-ink-50">
+              <div>
+                <span className="text-sm font-medium text-ink-700">Unpair</span>
+                <p className="mt-0.5 text-xs text-ink-400">Stuck pairing, or need to reconnect fresh? Start here.</p>
+              </div>
+              <UserX size={18} className="text-ink-300" />
+            </button>
+          )}
         </div>
       </section>
 
