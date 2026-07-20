@@ -1,13 +1,15 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../lib/auth';
 import { supabase, cacheGet, cacheSet, type Profile } from '../lib/supabase';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, differenceInCalendarDays } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { avatarEmoji, moodEmoji } from '../lib/emoji';
 import { useOnlineStatus } from '../lib/useOnlineStatus';
-import { Sparkles, ArrowUpRight } from 'lucide-react';
+import { Sparkles, ArrowUpRight, MessageCircleQuestion, Gamepad2, CalendarHeart } from 'lucide-react';
 
 type PartnerData = { profile: Profile | null; online: boolean; lastSeen: string | null };
+type DailyAnswerRow = { question: string; user_a: string; user_a_answer: string | null; user_b_answer: string | null };
+type UpcomingDate = { title: string; event_date: string; recurring_yearly: boolean };
 
 export default function DashboardScreen() {
   const { profile } = useAuth();
@@ -22,6 +24,10 @@ export default function DashboardScreen() {
   const [streak, setStreak] = useState(() => cacheGet<number>('streak') ?? 0);
   const [aiTip, setAiTip] = useState<string | null>(() => cacheGet<string>('ai_tip'));
   const [loadingTip, setLoadingTip] = useState(false);
+  const [dailyRow, setDailyRow] = useState<DailyAnswerRow | null>(() => cacheGet<DailyAnswerRow>('daily_row'));
+  const [myAnswer, setMyAnswer] = useState('');
+  const [submittingAnswer, setSubmittingAnswer] = useState(false);
+  const [upcoming, setUpcoming] = useState<UpcomingDate | null>(() => cacheGet<UpcomingDate>('upcoming_date'));
 
   const loadPartner = useCallback(async () => {
     if (!profile?.paired_with) return;
@@ -77,7 +83,66 @@ export default function DashboardScreen() {
     } finally { setLoadingTip(false); }
   }, []);
 
-  useEffect(() => { loadPartner(); loadStats(); }, [loadPartner, loadStats]);
+  const loadDaily = useCallback(async () => {
+    if (!profile?.id || !profile?.paired_with) return;
+    try {
+      const sorted = [profile.id, profile.paired_with].sort();
+      const today = new Date().toISOString().slice(0, 10);
+      const { data } = await supabase.from('daily_answers').select('question, user_a, user_a_answer, user_b_answer')
+        .eq('user_a', sorted[0]).eq('user_b', sorted[1]).eq('prompt_date', today).maybeSingle();
+
+      if (data) {
+        setDailyRow(data as DailyAnswerRow);
+        cacheSet('daily_row', data);
+      } else {
+        const { data: promptData } = await supabase.rpc('get_todays_prompt');
+        const fresh = { question: promptData?.question ?? '', user_a: sorted[0], user_a_answer: null, user_b_answer: null };
+        setDailyRow(fresh);
+        cacheSet('daily_row', fresh);
+      }
+    } catch {
+      // offline — keep cached prompt
+    }
+  }, [profile?.id, profile?.paired_with]);
+
+  const submitDailyAnswer = async () => {
+    if (!myAnswer.trim()) return;
+    setSubmittingAnswer(true);
+    try {
+      await supabase.rpc('submit_daily_answer', { answer_text: myAnswer.trim() });
+      setMyAnswer('');
+      await loadDaily();
+    } finally {
+      setSubmittingAnswer(false);
+    }
+  };
+
+  const loadUpcoming = useCallback(async () => {
+    if (!profile?.id) return;
+    try {
+      const { data } = await supabase.from('important_dates').select('title, event_date, recurring_yearly');
+      if (!data || data.length === 0) { setUpcoming(null); return; }
+
+      const today = new Date();
+      const withNextOccurrence = data.map((d) => {
+        let next = new Date(d.event_date);
+        if (d.recurring_yearly) {
+          next.setFullYear(today.getFullYear());
+          if (differenceInCalendarDays(next, today) < 0) next.setFullYear(today.getFullYear() + 1);
+        }
+        return { ...d, next };
+      }).sort((a, b) => a.next.getTime() - b.next.getTime());
+
+      const soonest = withNextOccurrence[0];
+      const result = { title: soonest.title, event_date: soonest.next.toISOString(), recurring_yearly: soonest.recurring_yearly };
+      setUpcoming(result);
+      cacheSet('upcoming_date', result);
+    } catch {
+      // offline — keep cached
+    }
+  }, [profile?.id]);
+
+  useEffect(() => { loadPartner(); loadStats(); loadDaily(); loadUpcoming(); }, [loadPartner, loadStats, loadDaily, loadUpcoming]);
 
   useEffect(() => {
     if (!profile?.paired_with || !online) return;
@@ -95,6 +160,18 @@ export default function DashboardScreen() {
         <p className="text-sm text-ink-400">{greeting}, {profile.display_name}</p>
         <h1 className="font-display text-display text-ink-900 mt-1">{avatarEmoji(profile.avatar_emoji)}</h1>
       </div>
+
+      {upcoming && (() => {
+        const days = differenceInCalendarDays(new Date(upcoming.event_date), new Date());
+        return (
+          <div className="flex items-center gap-2.5 rounded-2xl bg-accent-50 px-4 py-3 animate-slide-up">
+            <CalendarHeart size={16} className="flex-shrink-0 text-accent-600" />
+            <p className="text-sm text-accent-700">
+              {days === 0 ? `${upcoming.title} is today! 🎉` : days === 1 ? `${upcoming.title} is tomorrow!` : `${upcoming.title} in ${days} days`}
+            </p>
+          </div>
+        );
+      })()}
 
       {partner.profile ? (
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-50 via-white to-accent-50/40 p-6 shadow-soft animate-slide-up">
@@ -139,6 +216,45 @@ export default function DashboardScreen() {
         </div>
       </div>
 
+      {dailyRow && (
+        <div className="rounded-2xl bg-white p-5 shadow-soft animate-slide-up">
+          <div className="mb-2 flex items-center gap-2 text-brand-500">
+            <MessageCircleQuestion size={16} />
+            <span className="text-[13px] font-medium">Question of the day</span>
+          </div>
+          <p className="mb-3 text-[15px] leading-relaxed text-ink-800 text-balance">{dailyRow.question}</p>
+
+          {(dailyRow.user_a === profile.id ? dailyRow.user_a_answer : dailyRow.user_b_answer) ? (
+            <div className="space-y-2">
+              <p className="rounded-xl bg-brand-50 px-3 py-2 text-sm text-ink-700">
+                <span className="font-medium text-brand-600">You: </span>
+                {dailyRow.user_a === profile.id ? dailyRow.user_a_answer : dailyRow.user_b_answer}
+              </p>
+              {(dailyRow.user_a === profile.id ? dailyRow.user_b_answer : dailyRow.user_a_answer) ? (
+                <p className="rounded-xl bg-ink-50 px-3 py-2 text-sm text-ink-700">
+                  <span className="font-medium text-ink-500">{partner.profile?.display_name ?? 'Partner'}: </span>
+                  {dailyRow.user_a === profile.id ? dailyRow.user_b_answer : dailyRow.user_a_answer}
+                </p>
+              ) : (
+                <p className="text-xs text-ink-400">Waiting for {partner.profile?.display_name ?? 'your partner'} to answer...</p>
+              )}
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <input
+                value={myAnswer} onChange={(e) => setMyAnswer(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && submitDailyAnswer()}
+                placeholder="Your answer..."
+                className="input flex-1 py-2.5 text-sm"
+              />
+              <button onClick={submitDailyAnswer} disabled={submittingAnswer || !myAnswer.trim()} className="btn-primary px-4 disabled:opacity-40">
+                {submittingAnswer ? '...' : 'Send'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       <div
         onClick={() => !aiTip && !loadingTip && fetchAiTip()}
         className="group relative cursor-pointer overflow-hidden rounded-2xl bg-gradient-to-br from-accent-50/60 to-white p-5 shadow-soft transition-all duration-300 hover:shadow-lift animate-slide-up stagger-2"
@@ -161,14 +277,17 @@ export default function DashboardScreen() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 animate-slide-up stagger-3">
-        <button onClick={() => navigate('/timeline')} className="group flex items-center justify-between rounded-2xl bg-white p-4 shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-0.5">
+      <div className="grid grid-cols-3 gap-2.5 animate-slide-up stagger-3">
+        <button onClick={() => navigate('/timeline')} className="group flex flex-col items-center gap-1.5 rounded-2xl bg-white p-4 shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-0.5">
           <span className="text-sm font-medium text-ink-700">Timeline</span>
-          <ArrowUpRight size={18} className="text-ink-300 transition-all group-hover:text-brand-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+          <ArrowUpRight size={16} className="text-ink-300 transition-all group-hover:text-brand-400" />
         </button>
-        <button onClick={() => navigate('/chat')} className="group flex items-center justify-between rounded-2xl bg-white p-4 shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-0.5">
+        <button onClick={() => navigate('/chat')} className="group flex flex-col items-center gap-1.5 rounded-2xl bg-white p-4 shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-0.5">
           <span className="text-sm font-medium text-ink-700">Chat</span>
-          <ArrowUpRight size={18} className="text-ink-300 transition-all group-hover:text-accent-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+          <ArrowUpRight size={16} className="text-ink-300 transition-all group-hover:text-accent-400" />
+        </button>
+        <button onClick={() => navigate('/games')} className="group flex flex-col items-center gap-1.5 rounded-2xl bg-white p-4 shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-0.5">
+          <span className="flex items-center gap-1 text-sm font-medium text-ink-700"><Gamepad2 size={14} /> Games</span>
         </button>
       </div>
     </div>

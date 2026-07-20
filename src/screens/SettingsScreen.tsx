@@ -18,6 +18,32 @@ export default function SettingsScreen() {
   const [pushError, setPushError] = useState<string | null>(null);
   const [confirmUnpair, setConfirmUnpair] = useState(false);
   const [unpairing, setUnpairing] = useState(false);
+  const [dates, setDates] = useState<{ id: string; title: string; event_date: string; recurring_yearly: boolean; created_by: string }[]>([]);
+  const [newDateTitle, setNewDateTitle] = useState('');
+  const [newDateValue, setNewDateValue] = useState('');
+  const [addingDate, setAddingDate] = useState(false);
+
+  const loadDates = async () => {
+    const { data } = await supabase.from('important_dates').select('*').order('event_date', { ascending: true });
+    setDates(data ?? []);
+  };
+
+  useEffect(() => { loadDates(); }, []);
+
+  const handleAddDate = async () => {
+    if (!newDateTitle.trim() || !newDateValue) return;
+    setAddingDate(true);
+    await supabase.rpc('add_important_date', { p_title: newDateTitle.trim(), p_event_date: newDateValue, p_recurring: true });
+    setNewDateTitle('');
+    setNewDateValue('');
+    setAddingDate(false);
+    loadDates();
+  };
+
+  const handleDeleteDate = async (id: string) => {
+    await supabase.from('important_dates').delete().eq('id', id);
+    loadDates();
+  };
 
   const handleUnpair = async () => {
     setUnpairing(true);
@@ -105,6 +131,34 @@ export default function SettingsScreen() {
       </section>
 
       <section>
+        <p className="mb-3 text-[13px] font-medium text-ink-400 uppercase tracking-wider">Anniversary & dates</p>
+        <div className="space-y-2 rounded-2xl bg-white p-5 shadow-soft">
+          {dates.length > 0 && (
+            <div className="mb-3 space-y-2">
+              {dates.map((d) => (
+                <div key={d.id} className="flex items-center justify-between rounded-xl bg-ink-50 px-3 py-2.5">
+                  <div>
+                    <p className="text-sm font-medium text-ink-800">{d.title}</p>
+                    <p className="text-xs text-ink-400">{new Date(d.event_date).toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}{d.recurring_yearly ? ' · every year' : ''}</p>
+                  </div>
+                  {d.created_by === profile.id && (
+                    <button onClick={() => handleDeleteDate(d.id)} className="text-xs text-ink-300">Remove</button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-2">
+            <input value={newDateTitle} onChange={(e) => setNewDateTitle(e.target.value)} placeholder="Anniversary, her birthday..." className="input flex-1 py-2.5 text-sm" />
+            <input type="date" value={newDateValue} onChange={(e) => setNewDateValue(e.target.value)} className="input w-36 py-2.5 text-sm" />
+          </div>
+          <button onClick={handleAddDate} disabled={addingDate || !newDateTitle.trim() || !newDateValue} className="btn-primary w-full py-2.5 text-sm disabled:opacity-40">
+            {addingDate ? 'Adding...' : 'Add date'}
+          </button>
+        </div>
+      </section>
+
+      <section>
         <p className="mb-3 text-[13px] font-medium text-ink-400 uppercase tracking-wider">Notifications</p>
         <div className="rounded-2xl bg-white p-5 shadow-soft">
           <div className="flex items-center justify-between">
@@ -130,7 +184,7 @@ export default function SettingsScreen() {
       </section>
 
       <section>
-        <p className="mb-3 text-[13px] font-medium text-ink-400 uppercase tracking-wider">Pairing</p>
+        <p className="mb-3 text-[13px] font-medium text-ink-400 uppercase tracking-wider">Troubleshooting</p>
         <div className="overflow-hidden rounded-2xl bg-white shadow-soft">
           {confirmUnpair ? (
             <div className="px-5 py-4">
