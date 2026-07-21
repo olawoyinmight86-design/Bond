@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '../lib/auth';
 import { supabase, cacheGet, type Profile } from '../lib/supabase';
 import { format } from 'date-fns';
-import { Send, Mic, Image as ImageIcon, PenTool, Clock, CheckCheck, ChevronUp, MessageSquareText } from 'lucide-react';
+import { Send, Mic, Image as ImageIcon, PenTool, Clock, CheckCheck, ChevronUp, MessageSquareText, Reply, X as XIcon } from 'lucide-react';
 import { useOnlineStatus } from '../lib/useOnlineStatus';
 import { composeMessage, onQueueChange } from '../lib/syncEngine';
 import { setBadgeCount } from '../lib/badge';
@@ -32,6 +32,7 @@ export default function ChatScreen() {
   const [hasMoreHistory, setHasMoreHistory] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [stuckCount, setStuckCount] = useState(0);
+  const [replyingTo, setReplyingTo] = useState<{ preview: string; senderId: string } | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -98,6 +99,8 @@ export default function ChatScreen() {
           pending: false,
           read_at: row.read_at,
           reactions: row.reactions ?? {},
+          replyToPreview: row.reply_to_preview ?? undefined,
+          replyToSenderId: row.reply_to_sender_id ?? undefined,
         });
       }
       await loadLocal();
@@ -140,6 +143,7 @@ export default function ChatScreen() {
           id: row.id, client_id: row.client_id ?? row.id, sender_id: row.sender_id, recipient_id: row.recipient_id,
           type: row.type ?? 'text', content: row.content ?? '', media_url, duration_ms: row.duration_ms,
           created_at: row.created_at, pending: false, read_at: row.read_at, reactions: row.reactions ?? {},
+          replyToPreview: row.reply_to_preview ?? undefined, replyToSenderId: row.reply_to_sender_id ?? undefined,
         });
       }
       await loadLocal();
@@ -189,9 +193,20 @@ export default function ChatScreen() {
     typingChannelRef.current.send({ type: 'broadcast', event: 'typing', payload: {} });
   };
 
+  const previewFor = (msg: LocalMessage) => {
+    if (msg.type === 'photo') return '📷 Photo';
+    if (msg.type === 'voice') return '🎙️ Voice note';
+    if (msg.type === 'drawing') return '✍️ Drawing';
+    return msg.content.length > 80 ? msg.content.slice(0, 80) + '…' : msg.content;
+  };
+
   const send = async (payload: { type: 'text' | 'photo' | 'voice' | 'drawing'; content?: string; mediaBlob?: Blob; mediaMime?: string; durationMs?: number }) => {
     if (!profile?.id || !partnerId) return;
-    await composeMessage({ senderId: profile.id, recipientId: partnerId, ...payload });
+    await composeMessage({
+      senderId: profile.id, recipientId: partnerId, ...payload,
+      replyToPreview: replyingTo?.preview, replyToSenderId: replyingTo?.senderId,
+    });
+    setReplyingTo(null);
     setMode('text');
   };
 
@@ -243,7 +258,7 @@ export default function ChatScreen() {
         </a>
       )}
 
-      <div ref={listRef} className="flex-1 overflow-y-auto space-y-1 no-scrollbar">
+      <div ref={listRef} className="chat-wallpaper flex-1 overflow-y-auto space-y-1 rounded-2xl p-2 no-scrollbar">
         {hasMoreHistory && messages.length > 0 && (
           <button onClick={loadEarlier} disabled={loadingMore || !online} className="mx-auto mb-3 flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-[11px] font-medium text-ink-400 shadow-soft disabled:opacity-50">
             <ChevronUp size={12} />
@@ -273,11 +288,18 @@ export default function ChatScreen() {
                   </div>
                 )}
                 <div className={`flex ${own ? 'justify-end' : 'justify-start'} ${sameSender ? 'mt-0.5' : 'mt-2'}`}>
-                  <div className="relative">
+                  <div className="relative max-w-[75%]">
                     <button
                       onDoubleClick={() => !msg.pending && msg.id && setReactionPickerFor(reactionPickerFor === msg.client_id ? null : msg.client_id)}
-                      className={`max-w-[75%] px-4 py-2.5 text-left text-[15px] leading-relaxed transition-all ${own ? 'bg-brand-500 text-white rounded-2xl rounded-br-md' : 'bg-white text-ink-800 rounded-2xl rounded-bl-md shadow-soft'} ${sameSender ? (own ? 'rounded-br-sm' : 'rounded-bl-sm') : ''}`}
+                      onClick={() => reactionPickerFor === msg.client_id && setReactionPickerFor(null)}
+                      className={`w-full px-4 py-2.5 text-left text-[15px] leading-relaxed transition-all ${own ? 'bg-brand-500 text-white rounded-2xl rounded-br-md' : 'bg-white text-ink-800 rounded-2xl rounded-bl-md shadow-soft'} ${sameSender ? (own ? 'rounded-br-sm' : 'rounded-bl-sm') : ''}`}
                     >
+                      {msg.replyToPreview && (
+                        <div className={`mb-1.5 rounded-lg border-l-2 px-2 py-1 text-xs ${own ? 'border-white/50 bg-white/10 text-white/80' : 'border-brand-300 bg-ink-50 text-ink-500'}`}>
+                          <span className="font-medium">{msg.replyToSenderId === profile.id ? 'You' : partnerName}</span>
+                          <p className="truncate">{msg.replyToPreview}</p>
+                        </div>
+                      )}
                       {msg.type === 'text' && <p>{msg.content}</p>}
                       {msg.type === 'photo' && msg.media_url && (
                         <img src={msg.media_url} alt="Shared photo" className="max-h-64 rounded-xl object-cover" />
@@ -304,12 +326,19 @@ export default function ChatScreen() {
                     )}
 
                     {reactionPickerFor === msg.client_id && msg.id && (
-                      <div className={`absolute -top-11 ${own ? 'right-0' : 'left-0'} z-10 flex gap-1 rounded-full bg-white px-2 py-1.5 shadow-float animate-scale-in`}>
+                      <div className={`absolute -top-11 ${own ? 'right-0' : 'left-0'} z-10 flex items-center gap-1 rounded-full bg-white px-2 py-1.5 shadow-float animate-scale-in`}>
                         {QUICK_REACTIONS.map((emoji) => (
                           <button key={emoji} onClick={() => toggleReaction(msg.id, emoji)} className="text-lg transition-transform active:scale-125">
                             {emoji}
                           </button>
                         ))}
+                        <div className="mx-0.5 h-5 w-px bg-ink-100" />
+                        <button
+                          onClick={() => { setReplyingTo({ preview: previewFor(msg), senderId: msg.sender_id }); setReactionPickerFor(null); }}
+                          className="flex h-6 w-6 items-center justify-center text-ink-400 transition-transform active:scale-90"
+                        >
+                          <Reply size={16} />
+                        </button>
                       </div>
                     )}
                   </div>
@@ -322,6 +351,16 @@ export default function ChatScreen() {
       </div>
 
       <div className="sticky bottom-0 mt-4">
+        {replyingTo && mode === 'text' && (
+          <div className="mb-2 flex items-center gap-2 rounded-xl bg-white px-3 py-2 shadow-soft animate-slide-up">
+            <Reply size={14} className="flex-shrink-0 text-brand-400" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-medium text-brand-500">Replying to {replyingTo.senderId === profile.id ? 'yourself' : partnerName}</p>
+              <p className="truncate text-xs text-ink-500">{replyingTo.preview}</p>
+            </div>
+            <button onClick={() => setReplyingTo(null)} className="flex-shrink-0 text-ink-300"><XIcon size={16} /></button>
+          </div>
+        )}
         {mode === 'voice' && (
           <VoiceRecorder
             onSend={(blob, mime, durationMs) => send({ type: 'voice', mediaBlob: blob, mediaMime: mime, durationMs })}

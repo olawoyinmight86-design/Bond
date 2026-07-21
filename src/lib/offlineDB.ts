@@ -22,6 +22,8 @@ export type OutboxItem = {
   duration_ms?: number;
   created_at: string;
   attempts: number;
+  replyToPreview?: string;
+  replyToSenderId?: string;
 };
 
 export type LocalMessage = {
@@ -38,6 +40,8 @@ export type LocalMessage = {
   pending: boolean; // true until confirmed written to Supabase
   read_at?: string | null;
   reactions?: Record<string, string>;
+  replyToPreview?: string;
+  replyToSenderId?: string;
 };
 
 function openDB(): Promise<IDBDatabase> {

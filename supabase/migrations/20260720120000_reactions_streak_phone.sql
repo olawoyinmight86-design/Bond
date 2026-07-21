@@ -79,6 +79,9 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.get_streak() TO authenticated;
 
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to_preview text;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to_sender_id uuid;
+
 -- Optional phone number, used only for the "send as text" fallback when a
 -- message has been stuck offline for a while and cell signal (but not data)
 -- is available.

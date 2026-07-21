@@ -5,6 +5,7 @@ import { AVATAR_EMOJIS, avatarEmoji } from '../lib/emoji';
 import { Check, LogOut, Bell, BellOff, UserX } from 'lucide-react';
 import { enablePushNotifications } from '../lib/push';
 import { supabase } from '../lib/supabase';
+import { THEMES, applyTheme, getSavedTheme, type ThemeId } from '../lib/theme';
 
 export default function SettingsScreen() {
   const { profile, updateProfile, signOut, refreshProfile } = useAuth();
@@ -22,6 +23,12 @@ export default function SettingsScreen() {
   const [newDateTitle, setNewDateTitle] = useState('');
   const [newDateValue, setNewDateValue] = useState('');
   const [addingDate, setAddingDate] = useState(false);
+  const [theme, setTheme] = useState<ThemeId>(getSavedTheme());
+
+  const handleThemeChange = (id: ThemeId) => {
+    setTheme(id);
+    applyTheme(id);
+  };
 
   const loadDates = async () => {
     const { data } = await supabase.from('important_dates').select('*').order('event_date', { ascending: true });
@@ -114,6 +121,25 @@ export default function SettingsScreen() {
           <button onClick={handleSave} disabled={busy} className="btn-primary w-full py-3">
             {busy ? 'Saving...' : saved ? <span className="flex items-center gap-1.5"><Check size={16} /> Saved</span> : 'Save changes'}
           </button>
+        </div>
+      </section>
+
+      <section>
+        <p className="mb-3 text-[13px] font-medium text-ink-400 uppercase tracking-wider">Theme</p>
+        <div className="rounded-2xl bg-white p-5 shadow-soft">
+          <div className="grid grid-cols-5 gap-3">
+            {THEMES.map((t) => (
+              <button key={t.id} onClick={() => handleThemeChange(t.id)} className="flex flex-col items-center gap-1.5">
+                <span
+                  className="flex h-11 w-11 items-center justify-center rounded-full transition-transform"
+                  style={{ backgroundColor: t.swatch, transform: theme === t.id ? 'scale(1.1)' : 'scale(1)', boxShadow: theme === t.id ? `0 0 0 3px white, 0 0 0 5px ${t.swatch}` : 'none' }}
+                >
+                  {theme === t.id && <Check size={16} className="text-white" />}
+                </span>
+                <span className="text-[10px] text-ink-500">{t.name}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </section>
 
