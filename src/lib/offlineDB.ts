@@ -42,6 +42,9 @@ export type LocalMessage = {
   reactions?: Record<string, string>;
   replyToPreview?: string;
   replyToSenderId?: string;
+  pinned?: boolean;
+  edited_at?: string | null;
+  deleted_for_everyone?: boolean;
 };
 
 function openDB(): Promise<IDBDatabase> {

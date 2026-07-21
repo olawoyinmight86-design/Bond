@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '../lib/auth';
 import { supabase, cacheGet, type Profile } from '../lib/supabase';
 import { format } from 'date-fns';
-import { Send, Mic, Image as ImageIcon, PenTool, Clock, CheckCheck, ChevronUp, MessageSquareText, Reply, X as XIcon } from 'lucide-react';
+import { Send, Mic, Image as ImageIcon, PenTool, Clock, CheckCheck, ChevronUp, MessageSquareText, Reply, X as XIcon, Search, Pin, Pencil, Trash2 } from 'lucide-react';
 import { useOnlineStatus } from '../lib/useOnlineStatus';
 import { composeMessage, onQueueChange } from '../lib/syncEngine';
 import { setBadgeCount } from '../lib/badge';
@@ -33,6 +33,10 @@ export default function ChatScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [stuckCount, setStuckCount] = useState(0);
   const [replyingTo, setReplyingTo] = useState<{ preview: string; senderId: string } | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -101,6 +105,9 @@ export default function ChatScreen() {
           reactions: row.reactions ?? {},
           replyToPreview: row.reply_to_preview ?? undefined,
           replyToSenderId: row.reply_to_sender_id ?? undefined,
+          pinned: row.pinned ?? false,
+          edited_at: row.edited_at,
+          deleted_for_everyone: row.deleted_for_everyone ?? false,
         });
       }
       await loadLocal();
@@ -144,6 +151,7 @@ export default function ChatScreen() {
           type: row.type ?? 'text', content: row.content ?? '', media_url, duration_ms: row.duration_ms,
           created_at: row.created_at, pending: false, read_at: row.read_at, reactions: row.reactions ?? {},
           replyToPreview: row.reply_to_preview ?? undefined, replyToSenderId: row.reply_to_sender_id ?? undefined,
+          pinned: row.pinned ?? false, edited_at: row.edited_at, deleted_for_everyone: row.deleted_for_everyone ?? false,
         });
       }
       await loadLocal();
@@ -232,6 +240,44 @@ export default function ChatScreen() {
     syncFromServer();
   };
 
+  const togglePin = async (messageId: string) => {
+    setReactionPickerFor(null);
+    if (!online) return;
+    await supabase.rpc('toggle_pin', { message_id: messageId });
+    syncFromServer();
+  };
+
+  const startEdit = (msg: LocalMessage) => {
+    setReactionPickerFor(null);
+    setEditingId(msg.id);
+    setEditText(msg.content);
+  };
+
+  const saveEdit = async () => {
+    if (!editingId || !editText.trim()) return;
+    await supabase.rpc('edit_message', { message_id: editingId, new_content: editText.trim() });
+    setEditingId(null);
+    setEditText('');
+    syncFromServer();
+  };
+
+  const deleteForEveryone = async (messageId: string) => {
+    setReactionPickerFor(null);
+    if (!online) return;
+    await supabase.rpc('delete_message_for_everyone', { message_id: messageId });
+    syncFromServer();
+  };
+
+  const pinnedMessages = messages.filter((m) => m.pinned && !m.deleted_for_everyone);
+  const visibleMessages = searchQuery.trim()
+    ? messages.filter((m) => m.type === 'text' && !m.deleted_for_everyone && m.content.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+    : messages;
+  const scrollToMessage = (clientId: string) => {
+    setSearchOpen(false);
+    setSearchQuery('');
+    document.getElementById(`msg-${clientId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
   if (!profile) return null;
 
   let lastDate = '';
@@ -246,7 +292,25 @@ export default function ChatScreen() {
             {partnerTyping ? <span className="text-brand-500 font-medium">typing...</span> : online ? 'Your private conversation' : "Offline — saved on your phone, sends the moment you're back"}
           </p>
         </div>
+        <button onClick={() => setSearchOpen((s) => !s)} className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors ${searchOpen ? 'bg-brand-500 text-white' : 'bg-white text-ink-400 shadow-soft'}`}>
+          <Search size={16} />
+        </button>
       </div>
+
+      {searchOpen && (
+        <input
+          autoFocus value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search messages..."
+          className="input mb-3 py-2.5 text-sm animate-slide-up"
+        />
+      )}
+
+      {pinnedMessages.length > 0 && !searchOpen && (
+        <button onClick={() => scrollToMessage(pinnedMessages[pinnedMessages.length - 1].client_id)} className="mb-3 flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-left shadow-soft animate-slide-up">
+          <Pin size={13} className="flex-shrink-0 text-brand-500" />
+          <p className="truncate text-xs text-ink-500"><span className="font-medium text-ink-700">Pinned:</span> {previewFor(pinnedMessages[pinnedMessages.length - 1])}</p>
+        </button>
+      )}
 
       {stuckCount > 0 && partnerPhone && (
         <a
@@ -270,18 +334,20 @@ export default function ChatScreen() {
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-2xl">💭</div>
             <p className="text-sm text-ink-400 text-center text-balance">Say hello to {partnerName}! Works even with no signal.</p>
           </div>
+        ) : searchQuery.trim() && visibleMessages.length === 0 ? (
+          <p className="mt-8 text-center text-sm text-ink-400">No messages match "{searchQuery}"</p>
         ) : (
-          messages.map((msg, i) => {
+          visibleMessages.map((msg, i) => {
             const own = msg.sender_id === profile.id;
             const dateStr = format(new Date(msg.created_at), 'yyyy-MM-dd');
             const showDateSep = dateStr !== lastDate;
             lastDate = dateStr;
-            const prevMsg = messages[i - 1];
+            const prevMsg = visibleMessages[i - 1];
             const sameSender = prevMsg && prevMsg.sender_id === msg.sender_id && format(new Date(prevMsg.created_at), 'yyyy-MM-dd') === dateStr;
             const reactionEntries = Object.entries(msg.reactions ?? {});
 
             return (
-              <div key={msg.client_id}>
+              <div key={msg.client_id} id={`msg-${msg.client_id}`}>
                 {showDateSep && (
                   <div className="my-4 flex items-center justify-center">
                     <span className="rounded-full bg-ink-100 px-3 py-1 text-[11px] font-medium text-ink-400">{format(new Date(msg.created_at), 'MMM d')}</span>
@@ -289,11 +355,29 @@ export default function ChatScreen() {
                 )}
                 <div className={`flex ${own ? 'justify-end' : 'justify-start'} ${sameSender ? 'mt-0.5' : 'mt-2'}`}>
                   <div className="relative max-w-[75%]">
+                    {msg.deleted_for_everyone ? (
+                      <div className={`w-full px-4 py-2.5 text-left text-[14px] italic ${own ? 'bg-brand-100 text-ink-400 rounded-2xl rounded-br-md' : 'bg-white text-ink-400 rounded-2xl rounded-bl-md shadow-soft'}`}>
+                        This message was deleted
+                      </div>
+                    ) : editingId === msg.id ? (
+                      <div className="w-full rounded-2xl bg-white p-2 shadow-soft">
+                        <input value={editText} onChange={(e) => setEditText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && saveEdit()} className="input py-2 text-sm" autoFocus />
+                        <div className="mt-1.5 flex gap-1.5">
+                          <button onClick={() => setEditingId(null)} className="flex-1 rounded-lg bg-ink-50 py-1.5 text-xs font-medium text-ink-500">Cancel</button>
+                          <button onClick={saveEdit} className="flex-1 rounded-lg bg-brand-500 py-1.5 text-xs font-medium text-white">Save</button>
+                        </div>
+                      </div>
+                    ) : (
                     <button
                       onDoubleClick={() => !msg.pending && msg.id && setReactionPickerFor(reactionPickerFor === msg.client_id ? null : msg.client_id)}
                       onClick={() => reactionPickerFor === msg.client_id && setReactionPickerFor(null)}
                       className={`w-full px-4 py-2.5 text-left text-[15px] leading-relaxed transition-all ${own ? 'bg-brand-500 text-white rounded-2xl rounded-br-md' : 'bg-white text-ink-800 rounded-2xl rounded-bl-md shadow-soft'} ${sameSender ? (own ? 'rounded-br-sm' : 'rounded-bl-sm') : ''}`}
                     >
+                      {msg.pinned && (
+                        <div className={`mb-1 flex items-center gap-1 text-[10px] font-medium ${own ? 'text-white/70' : 'text-brand-500'}`}>
+                          <Pin size={10} /> Pinned
+                        </div>
+                      )}
                       {msg.replyToPreview && (
                         <div className={`mb-1.5 rounded-lg border-l-2 px-2 py-1 text-xs ${own ? 'border-white/50 bg-white/10 text-white/80' : 'border-brand-300 bg-ink-50 text-ink-500'}`}>
                           <span className="font-medium">{msg.replyToSenderId === profile.id ? 'You' : partnerName}</span>
@@ -311,6 +395,7 @@ export default function ChatScreen() {
                         <img src={msg.media_url} alt="Handwritten note" className="max-h-64 rounded-xl bg-white object-contain" />
                       )}
                       <div className={`mt-1 flex items-center gap-1 text-[10px] ${own ? 'text-white/50' : 'text-ink-300'}`}>
+                        {msg.edited_at && <span className="italic">edited</span>}
                         <span>{format(new Date(msg.created_at), 'h:mm a')}</span>
                         {msg.pending && <Clock size={10} />}
                         {own && !msg.pending && (
@@ -318,6 +403,7 @@ export default function ChatScreen() {
                         )}
                       </div>
                     </button>
+                    )}
 
                     {reactionEntries.length > 0 && (
                       <div className={`absolute -bottom-3 ${own ? 'right-2' : 'left-2'} flex gap-0.5 rounded-full bg-white px-1.5 py-0.5 text-xs shadow-soft`}>
@@ -333,12 +419,22 @@ export default function ChatScreen() {
                           </button>
                         ))}
                         <div className="mx-0.5 h-5 w-px bg-ink-100" />
-                        <button
-                          onClick={() => { setReplyingTo({ preview: previewFor(msg), senderId: msg.sender_id }); setReactionPickerFor(null); }}
-                          className="flex h-6 w-6 items-center justify-center text-ink-400 transition-transform active:scale-90"
-                        >
+                        <button onClick={() => { setReplyingTo({ preview: previewFor(msg), senderId: msg.sender_id }); setReactionPickerFor(null); }} className="flex h-6 w-6 items-center justify-center text-ink-400 transition-transform active:scale-90">
                           <Reply size={16} />
                         </button>
+                        <button onClick={() => togglePin(msg.id)} className="flex h-6 w-6 items-center justify-center text-ink-400 transition-transform active:scale-90">
+                          <Pin size={15} />
+                        </button>
+                        {own && msg.type === 'text' && !msg.deleted_for_everyone && (
+                          <button onClick={() => startEdit(msg)} className="flex h-6 w-6 items-center justify-center text-ink-400 transition-transform active:scale-90">
+                            <Pencil size={14} />
+                          </button>
+                        )}
+                        {own && !msg.deleted_for_everyone && (
+                          <button onClick={() => deleteForEveryone(msg.id)} className="flex h-6 w-6 items-center justify-center text-error-400 transition-transform active:scale-90">
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
