@@ -1,11 +1,30 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Camera, Download, FlipHorizontal, X, RotateCcw, Users } from 'lucide-react';
+import { Camera, Download, FlipHorizontal, X, RotateCcw, Users, Send, Sparkles as SparklesIcon } from 'lucide-react';
+import { useAuth } from '../lib/auth';
+import { composeMessage } from '../lib/syncEngine';
 
 type Photo = { id: string; dataUrl: string; timestamp: string; pose: string };
 
 type PoseGuide = { id: string; label: string; icon: string; svg: JSX.Element };
 
+type FilterDef = { id: string; label: string; css: string };
+
+type PlacedSticker = { id: string; emoji: string; x: number; y: number };
+
 const GALLERY_KEY = 'bond_photobooth_gallery';
+
+const FILTERS: FilterDef[] = [
+  { id: 'none', label: 'Clean', css: 'none' },
+  { id: 'soft_love', label: 'Soft Love', css: 'saturate(1.15) brightness(1.08) contrast(0.95) sepia(0.08)' },
+  { id: 'golden_hour', label: 'Golden Hour', css: 'saturate(1.3) sepia(0.25) brightness(1.05) hue-rotate(-6deg)' },
+  { id: 'vintage', label: 'Vintage Date', css: 'sepia(0.4) contrast(1.1) brightness(0.95) saturate(0.85)' },
+  { id: 'bw', label: 'Black & White', css: 'grayscale(1) contrast(1.1)' },
+  { id: 'dreamy', label: 'Dreamy', css: 'brightness(1.12) contrast(0.9) saturate(1.1) blur(0.3px)' },
+  { id: 'moody', label: 'Moody', css: 'contrast(1.2) brightness(0.85) saturate(0.8)' },
+  { id: 'cozy_winter', label: 'Cozy Winter', css: 'saturate(0.9) brightness(1.02) hue-rotate(6deg) contrast(1.05)' },
+];
+
+const STICKER_OPTIONS = ['❤️', '💕', '😘', '✨', '🥰', '💍', '🌸', '😂'];
 
 function loadGallery(): Photo[] {
   try {
@@ -102,6 +121,13 @@ export default function PhotoboothScreen() {
   const [flash, setFlash] = useState(false);
   const [gallery, setGallery] = useState<Photo[]>(loadGallery);
   const [previewPhoto, setPreviewPhoto] = useState<Photo | null>(null);
+  const [activeFilter, setActiveFilter] = useState<FilterDef>(FILTERS[0]);
+  const [stickers, setStickers] = useState<PlacedSticker[]>([]);
+  const [showStickerTray, setShowStickerTray] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const { profile } = useAuth();
 
   const startCamera = useCallback(async () => {
     setCameraError(null);
@@ -166,12 +192,23 @@ export default function PhotoboothScreen() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    ctx.filter = activeFilter.css;
     if (mirrored) {
       ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
     }
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     if (mirrored) ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.filter = 'none';
+
+    // Bake in stickers at their placed positions
+    for (const s of stickers) {
+      const size = Math.round(canvas.width * 0.09);
+      ctx.font = `${size}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(s.emoji, s.x * canvas.width, s.y * canvas.height);
+    }
 
     // Watermark
     ctx.font = `bold ${Math.round(canvas.width * 0.025)}px Georgia, serif`;
@@ -192,7 +229,35 @@ export default function PhotoboothScreen() {
       return updated;
     });
     setPreviewPhoto(photo);
-  }, [mirrored, poseIndex]);
+    setStickers([]);
+    setSent(false);
+  }, [mirrored, poseIndex, activeFilter, stickers]);
+
+  const addSticker = (emoji: string) => {
+    setStickers((prev) => [...prev, { id: crypto.randomUUID(), emoji, x: 0.5, y: 0.4 + prev.length * 0.08 }]);
+    setShowStickerTray(false);
+  };
+
+  const moveSticker = (id: string, clientX: number, clientY: number) => {
+    const rect = stageRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const x = Math.min(0.95, Math.max(0.05, (clientX - rect.left) / rect.width));
+    const y = Math.min(0.95, Math.max(0.05, (clientY - rect.top) / rect.height));
+    setStickers((prev) => prev.map((s) => (s.id === id ? { ...s, x, y } : s)));
+  };
+
+  const sendToPartner = async (photo: Photo) => {
+    if (!profile?.id || !profile.paired_with) return;
+    setSending(true);
+    try {
+      const res = await fetch(photo.dataUrl);
+      const blob = await res.blob();
+      await composeMessage({ senderId: profile.id, recipientId: profile.paired_with, type: 'photo', mediaBlob: blob, mediaMime: 'image/jpeg' });
+      setSent(true);
+    } finally {
+      setSending(false);
+    }
+  };
 
   const downloadPhoto = (photo: Photo) => {
     const a = document.createElement('a');
@@ -222,7 +287,7 @@ export default function PhotoboothScreen() {
       </div>
 
       {/* Camera viewport */}
-      <div className="relative overflow-hidden rounded-3xl bg-ink-900 shadow-float" style={{ aspectRatio: '4/3' }}>
+      <div ref={stageRef} className="relative overflow-hidden rounded-3xl bg-ink-900 shadow-float" style={{ aspectRatio: '4/3' }}>
         {/* Flash overlay */}
         {flash && <div className="absolute inset-0 z-20 bg-white animate-pulse-soft pointer-events-none" style={{ opacity: 0.95 }} />}
 
@@ -250,8 +315,26 @@ export default function PhotoboothScreen() {
           playsInline
           muted
           className="h-full w-full object-cover"
-          style={{ transform: mirrored ? 'scaleX(-1)' : 'none' }}
+          style={{ transform: mirrored ? 'scaleX(-1)' : 'none', filter: activeFilter.css }}
         />
+
+        {/* Placed stickers — draggable */}
+        {stickers.map((s) => (
+          <div
+            key={s.id}
+            onPointerDown={(e) => {
+              e.currentTarget.setPointerCapture(e.pointerId);
+              const move = (ev: PointerEvent) => moveSticker(s.id, ev.clientX, ev.clientY);
+              const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+              window.addEventListener('pointermove', move);
+              window.addEventListener('pointerup', up);
+            }}
+            className="absolute z-10 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 cursor-grab select-none items-center justify-center text-3xl active:cursor-grabbing"
+            style={{ left: `${s.x * 100}%`, top: `${s.y * 100}%` }}
+          >
+            {s.emoji}
+          </div>
+        ))}
 
         {/* Pose overlay */}
         {showPoseOverlay && cameraReady && (
@@ -285,6 +368,12 @@ export default function PhotoboothScreen() {
         {cameraReady && (
           <div className="absolute top-3 right-3 z-10 flex gap-2">
             <button
+              onClick={() => setShowStickerTray((s) => !s)}
+              className={`flex h-9 w-9 items-center justify-center rounded-xl backdrop-blur-sm transition-all hover:bg-ink-900/70 active:scale-95 ${showStickerTray ? 'bg-brand-500/80 text-white' : 'bg-ink-900/50 text-white/60'}`}
+            >
+              <SparklesIcon size={16} />
+            </button>
+            <button
               onClick={() => setMirrored(m => !m)}
               className="flex h-9 w-9 items-center justify-center rounded-xl bg-ink-900/50 text-white backdrop-blur-sm transition-all hover:bg-ink-900/70 active:scale-95"
             >
@@ -298,10 +387,32 @@ export default function PhotoboothScreen() {
             </button>
           </div>
         )}
+
+        {/* Sticker tray */}
+        {showStickerTray && (
+          <div className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 gap-1.5 rounded-2xl bg-ink-900/70 px-3 py-2 backdrop-blur-sm animate-scale-in">
+            {STICKER_OPTIONS.map((emoji) => (
+              <button key={emoji} onClick={() => addSticker(emoji)} className="text-xl transition-transform active:scale-125">{emoji}</button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Hidden canvas */}
       <canvas ref={canvasRef} className="hidden" />
+
+      {/* Filter selector */}
+      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+        {FILTERS.map((f) => (
+          <button
+            key={f.id}
+            onClick={() => setActiveFilter(f)}
+            className={`shrink-0 rounded-xl px-3.5 py-2 text-xs font-medium transition-all duration-200 ${activeFilter.id === f.id ? 'bg-ink-900 text-white' : 'bg-white text-ink-500 shadow-soft'}`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
 
       {/* Pose selector */}
       <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
@@ -369,6 +480,15 @@ export default function PhotoboothScreen() {
                   >
                     <X size={18} />
                   </button>
+                  {profile?.paired_with && (
+                    <button
+                      onClick={() => sendToPartner(previewPhoto)}
+                      disabled={sending || sent}
+                      className="flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-white/20 active:scale-95 disabled:opacity-60"
+                    >
+                      <Send size={16} /> {sent ? 'Sent!' : sending ? 'Sending...' : 'Send to partner'}
+                    </button>
+                  )}
                   <button
                     onClick={() => downloadPhoto(previewPhoto)}
                     className="flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-brand-600 active:scale-95"
