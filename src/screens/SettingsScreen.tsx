@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { AVATAR_EMOJIS, avatarEmoji } from '../lib/emoji';
 import { Check, LogOut, Bell, BellOff, UserX } from 'lucide-react';
 import { enablePushNotifications } from '../lib/push';
+import { localRemindersSupported, localRemindersEnabled, enableLocalReminders, disableLocalReminders } from '../lib/localReminders';
 import { supabase } from '../lib/supabase';
 import { THEMES, applyTheme, getSavedTheme, type ThemeId } from '../lib/theme';
 
@@ -17,6 +18,27 @@ export default function SettingsScreen() {
   const [busy, setBusy] = useState(false);
   const [pushStatus, setPushStatus] = useState<'idle' | 'checking' | 'on' | 'off' | 'unsupported'>('idle');
   const [pushError, setPushError] = useState<string | null>(null);
+  const [localRemindersOn, setLocalRemindersOn] = useState(() => localRemindersEnabled());
+  const [localRemindersBusy, setLocalRemindersBusy] = useState(false);
+  const [localRemindersError, setLocalRemindersError] = useState<string | null>(null);
+  const localSupported = localRemindersSupported();
+
+  const handleEnableLocalReminders = async () => {
+    setLocalRemindersBusy(true);
+    setLocalRemindersError(null);
+    const result = await enableLocalReminders();
+    if (result.ok) {
+      setLocalRemindersOn(true);
+    } else {
+      setLocalRemindersError(result.reason ?? 'Could not enable reminders');
+    }
+    setLocalRemindersBusy(false);
+  };
+
+  const handleDisableLocalReminders = () => {
+    disableLocalReminders();
+    setLocalRemindersOn(false);
+  };
   const [confirmUnpair, setConfirmUnpair] = useState(false);
   const [unpairing, setUnpairing] = useState(false);
   const [dates, setDates] = useState<{ id: string; title: string; event_date: string; recurring_yearly: boolean; created_by: string }[]>([]);
@@ -100,7 +122,7 @@ export default function SettingsScreen() {
 
       <section>
         <p className="mb-3 text-[13px] font-medium text-ink-400 uppercase tracking-wider">Profile</p>
-        <div className="space-y-4 rounded-2xl bg-white p-5 shadow-soft">
+        <div className="space-y-4 rounded-2xl bg-surface p-5 shadow-soft">
           <div>
             <label className="label" htmlFor="name">Display name</label>
             <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} className="input" />
@@ -126,7 +148,7 @@ export default function SettingsScreen() {
 
       <section>
         <p className="mb-3 text-[13px] font-medium text-ink-400 uppercase tracking-wider">Theme</p>
-        <div className="rounded-2xl bg-white p-5 shadow-soft">
+        <div className="rounded-2xl bg-surface p-5 shadow-soft">
           <div className="grid grid-cols-5 gap-3">
             {THEMES.map((t) => (
               <button key={t.id} onClick={() => handleThemeChange(t.id)} className="flex flex-col items-center gap-1.5">
@@ -145,7 +167,7 @@ export default function SettingsScreen() {
 
       <section>
         <p className="mb-3 text-[13px] font-medium text-ink-400 uppercase tracking-wider">Pairing</p>
-        <div className="rounded-2xl bg-white p-5 shadow-soft">
+        <div className="rounded-2xl bg-surface p-5 shadow-soft">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-ink-500">Your partner code</p>
@@ -158,7 +180,7 @@ export default function SettingsScreen() {
 
       <section>
         <p className="mb-3 text-[13px] font-medium text-ink-400 uppercase tracking-wider">Anniversary & dates</p>
-        <div className="space-y-2 rounded-2xl bg-white p-5 shadow-soft">
+        <div className="space-y-2 rounded-2xl bg-surface p-5 shadow-soft">
           {dates.length > 0 && (
             <div className="mb-3 space-y-2">
               {dates.map((d) => (
@@ -186,7 +208,7 @@ export default function SettingsScreen() {
 
       <section>
         <p className="mb-3 text-[13px] font-medium text-ink-400 uppercase tracking-wider">Notifications</p>
-        <div className="rounded-2xl bg-white p-5 shadow-soft">
+        <div className="rounded-2xl bg-surface p-5 shadow-soft">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-500">
@@ -207,11 +229,35 @@ export default function SettingsScreen() {
           </div>
           {pushError && <p className="mt-3 text-xs text-error-500">{pushError}</p>}
         </div>
+
+        <div className="mt-3 rounded-2xl bg-surface p-5 shadow-soft">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-50 text-accent-600">
+                {localRemindersOn ? <Bell size={18} /> : <BellOff size={18} />}
+              </div>
+              <div>
+                <p className="text-sm font-medium text-ink-800">Local reminders</p>
+                <p className="text-xs text-ink-400">Daily question, mood check, upcoming dates — no server setup needed</p>
+              </div>
+            </div>
+            {localRemindersOn ? (
+              <button onClick={handleDisableLocalReminders} className="rounded-xl bg-ink-100 px-4 py-2 text-xs font-medium text-ink-600">
+                Turn off
+              </button>
+            ) : (
+              <button onClick={handleEnableLocalReminders} disabled={localRemindersBusy || !localSupported} className="rounded-xl bg-accent-500 px-4 py-2 text-xs font-medium text-white disabled:opacity-40">
+                {localRemindersBusy ? 'Enabling...' : !localSupported ? 'Unsupported' : 'Enable'}
+              </button>
+            )}
+          </div>
+          {localRemindersError && <p className="mt-3 text-xs text-error-500">{localRemindersError}</p>}
+        </div>
       </section>
 
       <section>
         <p className="mb-3 text-[13px] font-medium text-ink-400 uppercase tracking-wider">Troubleshooting</p>
-        <div className="overflow-hidden rounded-2xl bg-white shadow-soft">
+        <div className="overflow-hidden rounded-2xl bg-surface shadow-soft">
           {confirmUnpair ? (
             <div className="px-5 py-4">
               <p className="text-sm text-ink-700">Unpair from your partner? Your shared timeline, chat, and photos stay put — you can re-pair anytime.</p>
@@ -236,7 +282,7 @@ export default function SettingsScreen() {
 
       <section>
         <p className="mb-3 text-[13px] font-medium text-ink-400 uppercase tracking-wider">Account</p>
-        <div className="overflow-hidden rounded-2xl bg-white shadow-soft">
+        <div className="overflow-hidden rounded-2xl bg-surface shadow-soft">
           <div className="px-5 py-4">
             <p className="text-sm text-ink-500">Email</p>
             <p className="mt-0.5 text-sm text-ink-800">{profile.email}</p>

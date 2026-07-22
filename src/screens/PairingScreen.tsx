@@ -124,7 +124,7 @@ export default function PairingScreen() {
 
         <div className="mb-6 animate-slide-up">
           <p className="mb-3 text-center text-[13px] font-medium text-ink-400 uppercase tracking-wider">Your code</p>
-          <div className="rounded-2xl bg-white p-6 shadow-lift">
+          <div className="rounded-2xl bg-surface p-6 shadow-lift">
             <div className="text-center font-mono text-3xl tracking-[0.4em] text-ink-900 font-semibold">
               {partnerCode || '------'}
             </div>

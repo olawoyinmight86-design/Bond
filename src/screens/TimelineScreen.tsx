@@ -136,7 +136,7 @@ export default function TimelineScreen() {
         <>
           <div className="fixed inset-0 z-40 bg-ink-950/20 backdrop-blur-sm animate-fade-in" onClick={() => setShowAdd(false)} />
           <div className="fixed bottom-0 left-0 right-0 z-50 safe-bottom animate-slide-up">
-            <div className="mx-auto max-w-2xl rounded-t-3xl bg-white p-6 shadow-float">
+            <div className="mx-auto max-w-2xl rounded-t-3xl bg-surface p-6 shadow-float">
               <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-ink-200" />
               <div className="mb-5 flex items-center justify-between">
                 <h2 className="font-display text-lg text-ink-900">New moment</h2>
@@ -180,7 +180,7 @@ export default function TimelineScreen() {
               <p className="mb-3 text-[13px] font-medium text-ink-400 uppercase tracking-wider">{formatDateLabel(group.date)}</p>
               <div className="space-y-3">
                 {group.items.map((entry) => (
-                  <div key={entry.id} className="group relative rounded-2xl bg-white p-4 shadow-soft transition-all duration-300 hover:shadow-lift animate-slide-up">
+                  <div key={entry.id} className="group relative rounded-2xl bg-surface p-4 shadow-soft transition-all duration-300 hover:shadow-lift animate-slide-up">
                     <div className="mb-2 flex items-center gap-2">
                       <span className="text-base">{isOwn(entry) ? avatarEmoji(profile?.avatar_emoji) : '💕'}</span>
                       <span className="text-xs text-ink-400">{isOwn(entry) ? 'You' : 'Partner'}</span>

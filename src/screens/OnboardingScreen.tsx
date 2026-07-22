@@ -24,7 +24,7 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-ink-50 via-white to-brand-50/30 px-6">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-ink-50 via-surface to-brand-50/30 px-6">
       <div className="pointer-events-none absolute top-0 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-brand-100/20 blur-3xl" />
 
       <div className="relative z-10 w-full max-w-sm">

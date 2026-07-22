@@ -60,7 +60,7 @@ export default function VoiceRecorder({ onSend, onCancel }: Props) {
 
   if (error) {
     return (
-      <div className="rounded-2xl bg-white p-4 text-center shadow-lift">
+      <div className="rounded-2xl bg-surface p-4 text-center shadow-lift">
         <p className="text-sm text-error-600">{error}</p>
         <button onClick={onCancel} className="mt-2 text-xs text-ink-400">Close</button>
       </div>
@@ -68,7 +68,7 @@ export default function VoiceRecorder({ onSend, onCancel }: Props) {
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-lift">
+    <div className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-lift">
       {!recording && !blob && (
         <>
           <button onClick={start} className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-500 text-white active:scale-90 transition-transform">

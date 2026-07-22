@@ -70,7 +70,7 @@ export default function DrawPad({ onSend, onCancel }: Props) {
   };
 
   return (
-    <div className="rounded-2xl bg-white p-3 shadow-lift">
+    <div className="rounded-2xl bg-surface p-3 shadow-lift">
       <canvas
         ref={canvasRef}
         className="h-48 w-full touch-none rounded-xl border border-ink-100"

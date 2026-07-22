@@ -472,7 +472,7 @@ export default function PhotoboothScreen() {
       {/* Camera viewport */}
       <div ref={stageRef} className="relative overflow-hidden rounded-3xl bg-ink-900 shadow-float" style={{ aspectRatio: '4/3' }}>
         {/* Flash overlay */}
-        {flash && <div className="absolute inset-0 z-20 bg-white animate-pulse-soft pointer-events-none" style={{ opacity: 0.95 }} />}
+        {flash && <div className="absolute inset-0 z-20 bg-surface animate-pulse-soft pointer-events-none" style={{ opacity: 0.95 }} />}
 
         {/* Countdown */}
         {countdown !== null && countdown > 0 && (
@@ -599,7 +599,7 @@ export default function PhotoboothScreen() {
           <button
             key={f.id}
             onClick={() => setActiveFilter(f)}
-            className={`shrink-0 rounded-xl px-3.5 py-2 text-xs font-medium transition-all duration-200 ${activeFilter.id === f.id ? 'bg-ink-900 text-white' : 'bg-white text-ink-500 shadow-soft'}`}
+            className={`shrink-0 rounded-xl px-3.5 py-2 text-xs font-medium transition-all duration-200 ${activeFilter.id === f.id ? 'bg-ink-900 text-white' : 'bg-surface text-ink-500 shadow-soft'}`}
           >
             {f.label}
           </button>
@@ -612,7 +612,7 @@ export default function PhotoboothScreen() {
           <button
             key={p.id}
             onClick={() => setPoseIndex(i)}
-            className={`flex shrink-0 flex-col items-center gap-1 rounded-2xl px-4 py-2.5 text-center transition-all duration-200 ${poseIndex === i ? 'bg-brand-50 ring-2 ring-brand-300' : 'bg-white shadow-soft hover:shadow-lift'}`}
+            className={`flex shrink-0 flex-col items-center gap-1 rounded-2xl px-4 py-2.5 text-center transition-all duration-200 ${poseIndex === i ? 'bg-brand-50 ring-2 ring-brand-300' : 'bg-surface shadow-soft hover:shadow-lift'}`}
           >
             <span className="text-xl">{p.icon}</span>
             <span className="text-[10px] font-medium text-ink-500 whitespace-nowrap">{p.label}</span>
@@ -625,7 +625,7 @@ export default function PhotoboothScreen() {
         <button
           onClick={takePhoto}
           disabled={!cameraReady || countdown !== null}
-          className="relative flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-float transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
+          className="relative flex h-20 w-20 items-center justify-center rounded-full bg-surface shadow-float transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
         >
           <div className="h-14 w-14 rounded-full bg-brand-500 shadow-glow-brand flex items-center justify-center">
             <Camera size={24} className="text-white" />
@@ -656,7 +656,7 @@ export default function PhotoboothScreen() {
         <>
           <div className="fixed inset-0 z-50 bg-ink-950/80 backdrop-blur-md animate-fade-in" onClick={() => !duoBusy && setDuoOpen(false)} />
           <div className="fixed inset-x-4 top-1/2 z-50 -translate-y-1/2 animate-scale-in">
-            <div className="max-h-[85vh] overflow-y-auto rounded-3xl bg-white p-5 shadow-float">
+            <div className="max-h-[85vh] overflow-y-auto rounded-3xl bg-surface p-5 shadow-float">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="font-display text-lg text-ink-900">Duo Photo</h2>
                 <button onClick={() => setDuoOpen(false)} className="text-ink-300"><X size={20} /></button>
@@ -742,7 +742,7 @@ export default function PhotoboothScreen() {
                     <button
                       onClick={() => sendToPartner(previewPhoto)}
                       disabled={sending || sent}
-                      className="flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-white/20 active:scale-95 disabled:opacity-60"
+                      className="flex items-center gap-2 rounded-xl bg-surface/10 px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-surface/20 active:scale-95 disabled:opacity-60"
                     >
                       <Send size={16} /> {sent ? 'Sent!' : sending ? 'Sending...' : 'Send to partner'}
                     </button>

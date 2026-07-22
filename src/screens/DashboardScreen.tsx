@@ -7,6 +7,7 @@ import { avatarEmoji, moodEmoji } from '../lib/emoji';
 import { useOnlineStatus } from '../lib/useOnlineStatus';
 import { Sparkles, ArrowUpRight, MessageCircleQuestion, Gamepad2, CalendarHeart, Music, X } from 'lucide-react';
 import { musicSearchLinks } from '../lib/music';
+import { runReminderCheck } from '../lib/localReminders';
 
 type PartnerData = { profile: Profile | null; online: boolean; lastSeen: string | null };
 type DailyAnswerRow = { question: string; user_a: string; user_a_answer: string | null; user_b_answer: string | null };
@@ -23,6 +24,7 @@ export default function DashboardScreen() {
   const [momentCount, setMomentCount] = useState(() => cacheGet<number>('moment_count') ?? 0);
   const [recentMood, setRecentMood] = useState<string | null>(() => cacheGet<string>('recent_mood') ?? null);
   const [streak, setStreak] = useState(() => cacheGet<number>('streak') ?? 0);
+  const [moodLoggedToday, setMoodLoggedToday] = useState(false);
   const [aiTip, setAiTip] = useState<string | null>(() => cacheGet<string>('ai_tip'));
   const [loadingTip, setLoadingTip] = useState(false);
   const [dailyRow, setDailyRow] = useState<DailyAnswerRow | null>(() => cacheGet<DailyAnswerRow>('daily_row'));
@@ -51,10 +53,11 @@ export default function DashboardScreen() {
       const { count } = await supabase.from('timeline').select('*', { count: 'exact', head: true }).or(`user_id.eq.${profile.id},pair_id.eq.${profile.id}`);
       setMomentCount(count ?? 0);
       cacheSet('moment_count', count ?? 0);
-      const { data: moodData } = await supabase.from('timeline').select('mood, type').eq('type', 'mood').or(`user_id.eq.${profile.id},pair_id.eq.${profile.id}`).order('created_at', { ascending: false }).limit(1).maybeSingle();
+      const { data: moodData } = await supabase.from('timeline').select('mood, type, created_at').eq('type', 'mood').or(`user_id.eq.${profile.id},pair_id.eq.${profile.id}`).order('created_at', { ascending: false }).limit(1).maybeSingle();
       const mood = moodData?.mood ?? null;
       setRecentMood(mood);
       cacheSet('recent_mood', mood);
+      setMoodLoggedToday(!!moodData?.created_at && moodData.created_at.slice(0, 10) === new Date().toISOString().slice(0, 10));
 
       const { data: streakData } = await supabase.rpc('get_streak');
       if (typeof streakData === 'number') {
@@ -66,8 +69,31 @@ export default function DashboardScreen() {
     }
   }, [profile?.id, profile?.paired_with]);
 
-  const fetchAiTip = useCallback(async () => {
+  const LOCAL_TIPS = [
+    'Send a "thinking of you" text for no reason today.',
+    'Ask your partner about the best part of their day — and really listen.',
+    'Small gestures count more than grand ones. A silly meme can say "I love you" too.',
+    'Say thank you for something they do that you usually take for granted.',
+    'Share a memory that made you smile recently.',
+    'Ask what would make tomorrow easier for them.',
+    'Compliment something about them that isn\'t physical.',
+    'Plan one small thing to look forward to together this week.',
+    'Tell them exactly what you appreciate about how they handled something recently.',
+    'Ask "how can I support you today?" and mean it.',
+    'Revisit an old inside joke — nostalgia builds closeness.',
+    'Give a genuine compliment before any request or complaint today.',
+    'Ask about a dream or goal they haven\'t mentioned in a while.',
+    'Put your phone down for one full conversation today.',
+    'Tell them one thing you are looking forward to about your future together.',
+  ];
+
+  const fetchAiTip = useCallback(async (force = false) => {
+    const today = new Date().toISOString().slice(0, 10);
+    const cached = cacheGet<{ date: string; tip: string }>('ai_tip_v2');
+    if (!force && cached?.date === today) { setAiTip(cached.tip); return; }
+
     setLoadingTip(true);
+    let tip: string | null = null;
     try {
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bond-ai`;
       const res = await fetch(url, {
@@ -77,14 +103,26 @@ export default function DashboardScreen() {
       });
       if (res.ok) {
         const data = await res.json();
-        const tip = data.tip ?? data.message ?? null;
-        setAiTip(tip);
-        if (tip) cacheSet('ai_tip', tip);
+        tip = data.tip ?? data.message ?? null;
       }
     } catch {
-      // offline — keep cached tip
-    } finally { setLoadingTip(false); }
+      // offline or function not deployed — fall through to local bank below
+    }
+
+    if (!tip) {
+      // Local fallback bank — deterministic by day-of-year so it rotates
+      // daily and never repeats two days running, no network required.
+      const doy = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+      tip = LOCAL_TIPS[doy % LOCAL_TIPS.length];
+      if (tip === cached?.tip) tip = LOCAL_TIPS[(doy + 1) % LOCAL_TIPS.length];
+    }
+
+    setAiTip(tip);
+    cacheSet('ai_tip_v2', { date: today, tip });
+    setLoadingTip(false);
   }, []);
+
+  useEffect(() => { fetchAiTip(); }, [fetchAiTip]);
 
   const loadDaily = useCallback(async () => {
     if (!profile?.id || !profile?.paired_with) return;
@@ -165,6 +203,18 @@ export default function DashboardScreen() {
   useEffect(() => { loadPartner(); loadStats(); loadDaily(); loadUpcoming(); }, [loadPartner, loadStats, loadDaily, loadUpcoming]);
 
   useEffect(() => {
+    if (!profile?.id) return;
+    const hasUnansweredPrompt = !!dailyRow && !(dailyRow.user_a === profile.id ? dailyRow.user_a_answer : dailyRow.user_b_answer);
+    const upcomingDays = upcoming ? differenceInCalendarDays(new Date(upcoming.event_date), new Date()) : null;
+    runReminderCheck({
+      hasUnansweredPrompt,
+      moodLoggedToday,
+      upcomingDateTitle: upcoming?.title ?? null,
+      upcomingDateInDays: upcomingDays,
+    });
+  }, [profile?.id, dailyRow, moodLoggedToday, upcoming]);
+
+  useEffect(() => {
     if (!profile?.paired_with || !online) return;
     const channel = supabase.channel('partner-presence').on('postgres_changes', { event: '*', schema: 'public', table: 'presence', filter: `user_id=eq.${profile.paired_with}` }, () => loadPartner()).subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -194,15 +244,15 @@ export default function DashboardScreen() {
       })()}
 
       {partner.profile ? (
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-50 via-white to-accent-50/40 p-6 shadow-soft animate-slide-up">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-50 via-surface to-accent-50/40 p-6 shadow-soft animate-slide-up">
           <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-brand-100/40 blur-3xl" />
           <div className="pointer-events-none absolute -left-4 -bottom-4 h-24 w-24 rounded-full bg-accent-100/30 blur-2xl" />
           <div className="relative flex items-center gap-4">
             <div className="relative">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/80 text-3xl shadow-soft">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-surface/80 text-3xl shadow-soft">
                 {avatarEmoji(partner.profile.avatar_emoji)}
               </div>
-              <span className={`absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 border-white ${partner.online ? 'bg-success-500 shadow-sm shadow-success-500/50' : 'bg-ink-300'}`} />
+              <span className={`absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 border-surface ${partner.online ? 'bg-success-500 shadow-sm shadow-success-500/50' : 'bg-ink-300'}`} />
             </div>
             <div className="flex-1">
               <p className="font-display text-lg text-ink-900">{partner.profile.display_name}</p>
@@ -211,7 +261,7 @@ export default function DashboardScreen() {
               </p>
             </div>
             {streak > 0 && (
-              <div className="flex flex-col items-center rounded-2xl bg-white/70 px-3 py-2">
+              <div className="flex flex-col items-center rounded-2xl bg-surface/70 px-3 py-2">
                 <span className="text-lg leading-none">🔥</span>
                 <span className="mt-1 text-xs font-bold text-ink-800">{streak}</span>
               </div>
@@ -240,19 +290,19 @@ export default function DashboardScreen() {
         const links = musicSearchLinks(partner.profile.now_playing_title!, partner.profile.now_playing_artist ?? '');
         return (
           <div className="flex items-center gap-3 rounded-2xl bg-ink-900 p-4 text-white shadow-soft animate-slide-up">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white/10">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-surface/10">
               <Music size={16} />
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{partner.profile.now_playing_title}</p>
               <p className="truncate text-xs text-white/50">{partner.profile.display_name} is playing{partner.profile.now_playing_artist ? ` · ${partner.profile.now_playing_artist}` : ''}</p>
             </div>
-            <a href={links.spotify} target="_blank" rel="noreferrer" className="flex-shrink-0 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium">Listen</a>
+            <a href={links.spotify} target="_blank" rel="noreferrer" className="flex-shrink-0 rounded-lg bg-surface/10 px-3 py-1.5 text-xs font-medium">Listen</a>
           </div>
         );
       })()}
 
-      <div className="rounded-2xl bg-white p-4 shadow-soft animate-slide-up">
+      <div className="rounded-2xl bg-surface p-4 shadow-soft animate-slide-up">
         {profile.now_playing_title ? (
           <div className="flex items-center gap-3">
             <Music size={15} className="flex-shrink-0 text-brand-400" />
@@ -274,7 +324,7 @@ export default function DashboardScreen() {
       </div>
 
       {dailyRow && (
-        <div className="rounded-2xl bg-white p-5 shadow-soft animate-slide-up">
+        <div className="rounded-2xl bg-surface p-5 shadow-soft animate-slide-up">
           <div className="mb-2 flex items-center gap-2 text-brand-500">
             <MessageCircleQuestion size={16} />
             <span className="text-[13px] font-medium">Question of the day</span>
@@ -313,8 +363,8 @@ export default function DashboardScreen() {
       )}
 
       <div
-        onClick={() => !aiTip && !loadingTip && fetchAiTip()}
-        className="group relative cursor-pointer overflow-hidden rounded-2xl bg-gradient-to-br from-accent-50/60 to-white p-5 shadow-soft transition-all duration-300 hover:shadow-lift animate-slide-up stagger-2"
+        onClick={() => !loadingTip && fetchAiTip(true)}
+        className="group relative cursor-pointer overflow-hidden rounded-2xl bg-gradient-to-br from-accent-50/60 to-surface p-5 shadow-soft transition-all duration-300 hover:shadow-lift animate-slide-up stagger-2"
       >
         <div className="pointer-events-none absolute -right-4 -top-4 h-20 w-20 rounded-full bg-accent-100/20 blur-2xl" />
         <div className="relative">
@@ -335,24 +385,24 @@ export default function DashboardScreen() {
       </div>
 
       <div className="grid grid-cols-3 gap-2.5 animate-slide-up stagger-3">
-        <button onClick={() => navigate('/timeline')} className="group flex flex-col items-center gap-1.5 rounded-2xl bg-white p-4 shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-0.5">
+        <button onClick={() => navigate('/timeline')} className="group flex flex-col items-center gap-1.5 rounded-2xl bg-surface p-4 shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-0.5">
           <span className="text-sm font-medium text-ink-700">Timeline</span>
           <ArrowUpRight size={16} className="text-ink-300 transition-all group-hover:text-brand-400" />
         </button>
-        <button onClick={() => navigate('/chat')} className="group flex flex-col items-center gap-1.5 rounded-2xl bg-white p-4 shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-0.5">
+        <button onClick={() => navigate('/chat')} className="group flex flex-col items-center gap-1.5 rounded-2xl bg-surface p-4 shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-0.5">
           <span className="text-sm font-medium text-ink-700">Chat</span>
           <ArrowUpRight size={16} className="text-ink-300 transition-all group-hover:text-accent-400" />
         </button>
-        <button onClick={() => navigate('/games')} className="group flex flex-col items-center gap-1.5 rounded-2xl bg-white p-4 shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-0.5">
+        <button onClick={() => navigate('/games')} className="group flex flex-col items-center gap-1.5 rounded-2xl bg-surface p-4 shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-0.5">
           <span className="flex items-center gap-1 text-sm font-medium text-ink-700"><Gamepad2 size={14} /> Games</span>
         </button>
-        <button onClick={() => navigate('/bucket-list')} className="group flex flex-col items-center gap-1.5 rounded-2xl bg-white p-4 shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-0.5">
+        <button onClick={() => navigate('/bucket-list')} className="group flex flex-col items-center gap-1.5 rounded-2xl bg-surface p-4 shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-0.5">
           <span className="text-sm font-medium text-ink-700">Bucket List</span>
         </button>
-        <button onClick={() => navigate('/love-letters')} className="group flex flex-col items-center gap-1.5 rounded-2xl bg-white p-4 shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-0.5">
+        <button onClick={() => navigate('/love-letters')} className="group flex flex-col items-center gap-1.5 rounded-2xl bg-surface p-4 shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-0.5">
           <span className="text-sm font-medium text-ink-700">Letters</span>
         </button>
-        <button onClick={() => navigate('/photobooth')} className="group flex flex-col items-center gap-1.5 rounded-2xl bg-white p-4 shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-0.5">
+        <button onClick={() => navigate('/photobooth')} className="group flex flex-col items-center gap-1.5 rounded-2xl bg-surface p-4 shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-0.5">
           <span className="text-sm font-medium text-ink-700">Booth</span>
         </button>
       </div>

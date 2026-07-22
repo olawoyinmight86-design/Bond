@@ -44,14 +44,14 @@ export default function InstallPrompt() {
 
   return (
     <div className="mx-5 mb-3 flex items-center gap-3 rounded-2xl bg-ink-900 px-4 py-3 text-white shadow-lift animate-slide-up">
-      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white/10">
+      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-surface/10">
         <Download size={16} />
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium">Install Bond</p>
         <p className="text-xs text-white/60">Get the full-screen app — works offline, opens instantly</p>
       </div>
-      <button onClick={install} className="flex-shrink-0 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-ink-900">Install</button>
+      <button onClick={install} className="flex-shrink-0 rounded-lg bg-surface px-3 py-1.5 text-xs font-semibold text-ink-900">Install</button>
       <button onClick={dismiss} className="flex-shrink-0 text-white/40"><X size={16} /></button>
     </div>
   );

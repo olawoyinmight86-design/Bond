@@ -296,14 +296,14 @@ export default function ChatScreen() {
   return (
     <div className="flex h-[calc(100vh-13rem)] flex-col animate-fade-in">
       <div className="mb-4 flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-xl shadow-soft">💕</div>
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface text-xl shadow-soft">💕</div>
         <div className="min-w-0 flex-1">
           <h1 className="font-display text-lg text-ink-900">{partnerName}</h1>
           <p className="truncate text-xs text-ink-400">
             {partnerTyping ? <span className="text-brand-500 font-medium">typing...</span> : online ? 'Your private conversation' : "Offline — saved on your phone, sends the moment you're back"}
           </p>
         </div>
-        <button onClick={() => setSearchOpen((s) => !s)} className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors ${searchOpen ? 'bg-brand-500 text-white' : 'bg-white text-ink-400 shadow-soft'}`}>
+        <button onClick={() => setSearchOpen((s) => !s)} className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors ${searchOpen ? 'bg-brand-500 text-white' : 'bg-surface text-ink-400 shadow-soft'}`}>
           <Search size={16} />
         </button>
       </div>
@@ -317,7 +317,7 @@ export default function ChatScreen() {
       )}
 
       {pinnedMessages.length > 0 && !searchOpen && (
-        <button onClick={() => scrollToMessage(pinnedMessages[pinnedMessages.length - 1].client_id)} className="mb-3 flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-left shadow-soft animate-slide-up">
+        <button onClick={() => scrollToMessage(pinnedMessages[pinnedMessages.length - 1].client_id)} className="mb-3 flex items-center gap-2 rounded-xl bg-surface px-3 py-2 text-left shadow-soft animate-slide-up">
           <Pin size={13} className="flex-shrink-0 text-brand-500" />
           <p className="truncate text-xs text-ink-500"><span className="font-medium text-ink-700">Pinned:</span> {previewFor(pinnedMessages[pinnedMessages.length - 1])}</p>
         </button>
@@ -335,7 +335,7 @@ export default function ChatScreen() {
 
       <div ref={listRef} className="chat-wallpaper flex-1 overflow-y-auto space-y-1 rounded-2xl p-2 no-scrollbar">
         {hasMoreHistory && messages.length > 0 && (
-          <button onClick={loadEarlier} disabled={loadingMore || !online} className="mx-auto mb-3 flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-[11px] font-medium text-ink-400 shadow-soft disabled:opacity-50">
+          <button onClick={loadEarlier} disabled={loadingMore || !online} className="mx-auto mb-3 flex items-center gap-1 rounded-full bg-surface px-3 py-1.5 text-[11px] font-medium text-ink-400 shadow-soft disabled:opacity-50">
             <ChevronUp size={12} />
             {loadingMore ? 'Loading...' : 'Load earlier messages'}
           </button>
@@ -367,11 +367,11 @@ export default function ChatScreen() {
                 <div className={`flex ${own ? 'justify-end' : 'justify-start'} ${sameSender ? 'mt-0.5' : 'mt-2'}`}>
                   <div className="relative max-w-[75%]">
                     {msg.deleted_for_everyone ? (
-                      <div className={`w-full px-4 py-2.5 text-left text-[14px] italic ${own ? 'bg-brand-100 text-ink-400 rounded-2xl rounded-br-md' : 'bg-white text-ink-400 rounded-2xl rounded-bl-md shadow-soft'}`}>
+                      <div className={`w-full px-4 py-2.5 text-left text-[14px] italic ${own ? 'bg-brand-100 text-ink-400 rounded-2xl rounded-br-md' : 'bg-surface text-ink-400 rounded-2xl rounded-bl-md shadow-soft'}`}>
                         This message was deleted
                       </div>
                     ) : editingId === msg.id ? (
-                      <div className="w-full rounded-2xl bg-white p-2 shadow-soft">
+                      <div className="w-full rounded-2xl bg-surface p-2 shadow-soft">
                         <input value={editText} onChange={(e) => setEditText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && saveEdit()} className="input py-2 text-sm" autoFocus />
                         <div className="mt-1.5 flex gap-1.5">
                           <button onClick={() => setEditingId(null)} className="flex-1 rounded-lg bg-ink-50 py-1.5 text-xs font-medium text-ink-500">Cancel</button>
@@ -382,7 +382,7 @@ export default function ChatScreen() {
                     <button
                       onDoubleClick={() => !msg.pending && msg.id && setReactionPickerFor(reactionPickerFor === msg.client_id ? null : msg.client_id)}
                       onClick={() => reactionPickerFor === msg.client_id && setReactionPickerFor(null)}
-                      className={`w-full px-4 py-2.5 text-left text-[15px] leading-relaxed transition-all ${own ? 'bg-brand-500 text-white rounded-2xl rounded-br-md' : 'bg-white text-ink-800 rounded-2xl rounded-bl-md shadow-soft'} ${sameSender ? (own ? 'rounded-br-sm' : 'rounded-bl-sm') : ''}`}
+                      className={`w-full px-4 py-2.5 text-left text-[15px] leading-relaxed transition-all ${own ? 'bg-brand-500 text-white rounded-2xl rounded-br-md' : 'bg-surface text-ink-800 rounded-2xl rounded-bl-md shadow-soft'} ${sameSender ? (own ? 'rounded-br-sm' : 'rounded-bl-sm') : ''}`}
                     >
                       {msg.pinned && (
                         <div className={`mb-1 flex items-center gap-1 text-[10px] font-medium ${own ? 'text-white/70' : 'text-brand-500'}`}>
@@ -390,7 +390,7 @@ export default function ChatScreen() {
                         </div>
                       )}
                       {msg.replyToPreview && (
-                        <div className={`mb-1.5 rounded-lg border-l-2 px-2 py-1 text-xs ${own ? 'border-white/50 bg-white/10 text-white/80' : 'border-brand-300 bg-ink-50 text-ink-500'}`}>
+                        <div className={`mb-1.5 rounded-lg border-l-2 px-2 py-1 text-xs ${own ? 'border-white/50 bg-surface/10 text-white/80' : 'border-brand-300 bg-ink-50 text-ink-500'}`}>
                           <span className="font-medium">{msg.replyToSenderId === profile.id ? 'You' : partnerName}</span>
                           <p className="truncate">{msg.replyToPreview}</p>
                         </div>
@@ -403,7 +403,7 @@ export default function ChatScreen() {
                         <audio controls src={msg.media_url} className="h-9 w-52" />
                       )}
                       {msg.type === 'drawing' && msg.media_url && (
-                        <img src={msg.media_url} alt="Handwritten note" className="max-h-64 rounded-xl bg-white object-contain" />
+                        <img src={msg.media_url} alt="Handwritten note" className="max-h-64 rounded-xl bg-surface object-contain" />
                       )}
                       <div className={`mt-1 flex items-center gap-1 text-[10px] ${own ? 'text-white/50' : 'text-ink-300'}`}>
                         {msg.edited_at && <span className="italic">edited</span>}
@@ -417,13 +417,13 @@ export default function ChatScreen() {
                     )}
 
                     {reactionEntries.length > 0 && (
-                      <div className={`absolute -bottom-3 ${own ? 'right-2' : 'left-2'} flex gap-0.5 rounded-full bg-white px-1.5 py-0.5 text-xs shadow-soft`}>
+                      <div className={`absolute -bottom-3 ${own ? 'right-2' : 'left-2'} flex gap-0.5 rounded-full bg-surface px-1.5 py-0.5 text-xs shadow-soft`}>
                         {reactionEntries.map(([uid, emoji]) => <span key={uid}>{emoji as string}</span>)}
                       </div>
                     )}
 
                     {reactionPickerFor === msg.client_id && msg.id && (
-                      <div className={`absolute -top-11 ${own ? 'right-0' : 'left-0'} z-10 flex items-center gap-1 rounded-full bg-white px-2 py-1.5 shadow-float animate-scale-in`}>
+                      <div className={`absolute -top-11 ${own ? 'right-0' : 'left-0'} z-10 flex items-center gap-1 rounded-full bg-surface px-2 py-1.5 shadow-float animate-scale-in`}>
                         {QUICK_REACTIONS.map((emoji) => (
                           <button key={emoji} onClick={() => toggleReaction(msg.id, emoji)} className="text-lg transition-transform active:scale-125">
                             {emoji}
@@ -459,7 +459,7 @@ export default function ChatScreen() {
 
       <div className="sticky bottom-0 mt-4">
         {replyingTo && mode === 'text' && (
-          <div className="mb-2 flex items-center gap-2 rounded-xl bg-white px-3 py-2 shadow-soft animate-slide-up">
+          <div className="mb-2 flex items-center gap-2 rounded-xl bg-surface px-3 py-2 shadow-soft animate-slide-up">
             <Reply size={14} className="flex-shrink-0 text-brand-400" />
             <div className="min-w-0 flex-1">
               <p className="text-[11px] font-medium text-brand-500">Replying to {replyingTo.senderId === profile.id ? 'yourself' : partnerName}</p>
@@ -471,7 +471,7 @@ export default function ChatScreen() {
         {(disappearingHours || showSchedulePicker) && mode === 'text' && (
           <div className="mb-2 space-y-2 animate-slide-up">
             {showSchedulePicker && (
-              <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2 shadow-soft">
+              <div className="flex items-center gap-2 rounded-xl bg-surface px-3 py-2 shadow-soft">
                 <CalendarClock size={14} className="flex-shrink-0 text-brand-400" />
                 <input type="datetime-local" value={scheduleAt} onChange={(e) => setScheduleAt(e.target.value)} className="flex-1 bg-transparent text-xs text-ink-700 outline-none" />
                 <button onClick={() => { setShowSchedulePicker(false); setScheduleAt(''); }} className="flex-shrink-0 text-ink-300"><XIcon size={14} /></button>
@@ -499,7 +499,7 @@ export default function ChatScreen() {
           />
         )}
         {mode === 'text' && (
-          <div className="flex items-center gap-1.5 rounded-2xl bg-white p-2 shadow-lift">
+          <div className="flex items-center gap-1.5 rounded-2xl bg-surface p-2 shadow-lift">
             <button onClick={() => fileInputRef.current?.click()} className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-ink-400 active:scale-90 transition-transform">
               <ImageIcon size={19} />
             </button>

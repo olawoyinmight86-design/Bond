@@ -72,11 +72,11 @@ export default function GamesScreen() {
   return (
     <div className="animate-fade-in">
       <div className="mb-6 flex items-center gap-3">
-        <button onClick={() => navigate('/')} className="flex h-9 w-9 items-center justify-center rounded-xl bg-white shadow-soft"><ArrowLeft size={16} /></button>
+        <button onClick={() => navigate('/')} className="flex h-9 w-9 items-center justify-center rounded-xl bg-surface shadow-soft"><ArrowLeft size={16} /></button>
         <h1 className="font-display text-display-sm text-ink-900">Games</h1>
       </div>
 
-      <div className="mb-6 flex gap-2 rounded-2xl bg-white p-1.5 shadow-soft">
+      <div className="mb-6 flex gap-2 rounded-2xl bg-surface p-1.5 shadow-soft">
         <button onClick={() => setTab('truth_or_dare')} className={`flex-1 rounded-xl py-2.5 text-sm font-medium transition-colors ${tab === 'truth_or_dare' ? 'bg-brand-500 text-white' : 'text-ink-500'}`}>Truth or Dare</button>
         <button onClick={() => setTab('this_or_that')} className={`flex-1 rounded-xl py-2.5 text-sm font-medium transition-colors ${tab === 'this_or_that' ? 'bg-brand-500 text-white' : 'text-ink-500'}`}>This or That</button>
       </div>
@@ -99,7 +99,7 @@ export default function GamesScreen() {
                   <button onClick={() => resolve('done')} disabled={busy} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-ink-900 py-3 text-sm font-medium text-white">
                     <Check size={16} /> Done it
                   </button>
-                  <button onClick={() => resolve('skipped')} disabled={busy} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-white py-3 text-sm font-medium text-ink-500 shadow-soft">
+                  <button onClick={() => resolve('skipped')} disabled={busy} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-surface py-3 text-sm font-medium text-ink-500 shadow-soft">
                     <X size={16} /> Skip (penalty)
                   </button>
                 </div>
@@ -108,7 +108,7 @@ export default function GamesScreen() {
               )}
             </div>
           ) : (
-            <div className="rounded-3xl bg-white p-6 text-center shadow-soft">
+            <div className="rounded-3xl bg-surface p-6 text-center shadow-soft">
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-500">
                 <Sparkles size={22} />
               </div>
@@ -129,7 +129,7 @@ export default function GamesScreen() {
       {tab === 'this_or_that' && (
         <div className="space-y-4 animate-fade-in">
           {totState.optionA && totState.optionB ? (
-            <div className="rounded-3xl bg-white p-6 shadow-soft">
+            <div className="rounded-3xl bg-surface p-6 shadow-soft">
               {!myPick ? (
                 <>
                   <p className="mb-4 text-center text-sm text-ink-500">Pick one — no overthinking it</p>
@@ -162,7 +162,7 @@ export default function GamesScreen() {
               )}
             </div>
           ) : (
-            <div className="rounded-3xl bg-white p-6 text-center shadow-soft">
+            <div className="rounded-3xl bg-surface p-6 text-center shadow-soft">
               <p className="mb-5 text-sm text-ink-500">Quick-fire choices, see how well you match.</p>
               <button onClick={newRound} disabled={busy} className="btn-primary w-full py-3">Start a round</button>
             </div>

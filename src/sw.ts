@@ -39,6 +39,25 @@ registerRoute(
 self.addEventListener('install', () => { self.skipWaiting(); });
 self.addEventListener('activate', (event) => { event.waitUntil(self.clients.claim()); });
 
+// Best-effort background nudge (Chrome/Edge only, requires site engagement).
+// This can't safely do an authenticated data-aware check from inside the
+// service worker, so it's a gentle generic reminder — the rich, specific
+// reminders (today's question, mood check, upcoming date) run via
+// runReminderCheck() in the app itself every time it's opened, which is
+// the reliable path regardless of periodic sync support.
+self.addEventListener('periodicsync', (event: any) => {
+  if (event.tag === 'bond-daily-check') {
+    event.waitUntil(
+      self.registration.showNotification('Bond', {
+        body: "Don't forget to check in with your partner today 💕",
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        tag: 'periodic-nudge',
+      })
+    );
+  }
+});
+
 // --- Web Push: shows a notification the instant a message arrives, even
 // if the app is fully closed. Requires the send-push edge function to be
 // deployed (see PUSH_SETUP.md).

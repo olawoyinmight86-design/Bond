@@ -54,11 +54,11 @@ export default function BucketListScreen() {
   return (
     <div className="animate-fade-in">
       <div className="mb-6 flex items-center gap-3">
-        <button onClick={() => navigate('/')} className="flex h-9 w-9 items-center justify-center rounded-xl bg-white shadow-soft"><ArrowLeft size={16} /></button>
+        <button onClick={() => navigate('/')} className="flex h-9 w-9 items-center justify-center rounded-xl bg-surface shadow-soft"><ArrowLeft size={16} /></button>
         <h1 className="font-display text-display-sm text-ink-900">Bucket List</h1>
       </div>
 
-      <div className="mb-4 rounded-2xl bg-white p-4 shadow-soft">
+      <div className="mb-4 rounded-2xl bg-surface p-4 shadow-soft">
         <div className="flex gap-2">
           <input value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addItem()} placeholder="Watch the northern lights..." className="input flex-1 py-2.5 text-sm" />
           <button onClick={addItem} disabled={adding || !title.trim()} className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-brand-500 text-white disabled:opacity-40">
@@ -74,7 +74,7 @@ export default function BucketListScreen() {
         </div>
       </div>
 
-      <div className="mb-4 flex gap-2 rounded-2xl bg-white p-1.5 shadow-soft">
+      <div className="mb-4 flex gap-2 rounded-2xl bg-surface p-1.5 shadow-soft">
         <button onClick={() => setFilter('active')} className={`flex-1 rounded-xl py-2 text-sm font-medium ${filter === 'active' ? 'bg-brand-500 text-white' : 'text-ink-500'}`}>To do ({items.filter((i) => !i.completed).length})</button>
         <button onClick={() => setFilter('completed')} className={`flex-1 rounded-xl py-2 text-sm font-medium ${filter === 'completed' ? 'bg-brand-500 text-white' : 'text-ink-500'}`}>Done ({items.filter((i) => i.completed).length})</button>
       </div>
@@ -84,7 +84,7 @@ export default function BucketListScreen() {
           <p className="py-8 text-center text-sm text-ink-400">{filter === 'active' ? 'Nothing here yet — add your first dream together.' : 'Nothing checked off yet.'}</p>
         )}
         {visible.map((item) => (
-          <div key={item.id} className={`flex items-center gap-3 rounded-2xl bg-white p-3.5 shadow-soft transition-all ${item.completed ? 'opacity-60' : ''}`}>
+          <div key={item.id} className={`flex items-center gap-3 rounded-2xl bg-surface p-3.5 shadow-soft transition-all ${item.completed ? 'opacity-60' : ''}`}>
             <button onClick={() => toggleItem(item)} className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border-2 transition-colors ${item.completed ? 'border-brand-500 bg-brand-500 text-white' : 'border-ink-200'}`}>
               {item.completed && <Check size={13} />}
             </button>
