@@ -80,7 +80,95 @@ END;
 $$;
 GRANT EXECUTE ON FUNCTION public.submit_daily_answer(text) TO authenticated;
 
-CREATE OR REPLACE FUNCTION public.get_todays_prompt()
+INSERT INTO daily_prompts_bank (question) VALUES
+  ('How are you feeling today, really?'),
+  ('What made you smile today?'),
+  ('What do you miss right now?'),
+  ('What are you grateful for today?')
+ON CONFLICT (question) DO NOTHING;
+
+-- Let submitting a daily answer optionally log a mood too, so journaling
+-- and mood tracking are the same one motion instead of two separate flows.
+CREATE OR REPLACE FUNCTION public.submit_daily_answer(answer_text text, mood_emoji text DEFAULT NULL)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  caller uuid := auth.uid();
+  partner uuid;
+  a uuid; b uuid;
+  today date := CURRENT_DATE;
+  bank_size int;
+  q text;
+BEGIN
+  SELECT paired_with INTO partner FROM profiles WHERE id = caller;
+  IF partner IS NULL THEN RETURN jsonb_build_object('success', false, 'error', 'Not paired'); END IF;
+
+  a := LEAST(caller, partner);
+  b := GREATEST(caller, partner);
+
+  SELECT count(*) INTO bank_size FROM daily_prompts_bank;
+  SELECT question INTO q FROM daily_prompts_bank
+    ORDER BY id OFFSET (EXTRACT(doy FROM today)::int % bank_size) LIMIT 1;
+
+  INSERT INTO daily_answers (user_a, user_b, prompt_date, question, user_a_answer, user_b_answer)
+  VALUES (a, b, today, q, CASE WHEN caller = a THEN answer_text END, CASE WHEN caller = b THEN answer_text END)
+  ON CONFLICT (user_a, user_b, prompt_date) DO UPDATE SET
+    user_a_answer = CASE WHEN caller = a THEN answer_text ELSE daily_answers.user_a_answer END,
+    user_b_answer = CASE WHEN caller = b THEN answer_text ELSE daily_answers.user_b_answer END;
+
+  IF mood_emoji IS NOT NULL THEN
+    INSERT INTO timeline (user_id, pair_id, type, content, mood)
+    VALUES (caller, partner, 'mood', 'Feeling ' || mood_emoji, mood_emoji);
+  END IF;
+
+  RETURN jsonb_build_object('success', true);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.submit_daily_answer(text, text) TO authenticated;
+
+-- Personal journaling streak: consecutive days YOU answered the daily
+-- question, independent of whether your partner did too.
+CREATE OR REPLACE FUNCTION public.get_journal_streak()
+RETURNS int
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  caller uuid := auth.uid();
+  partner uuid;
+  a uuid; b uuid;
+  streak int := 0;
+  d date := CURRENT_DATE;
+  answered boolean;
+BEGIN
+  SELECT paired_with INTO partner FROM profiles WHERE id = caller;
+  IF partner IS NULL THEN RETURN 0; END IF;
+  a := LEAST(caller, partner); b := GREATEST(caller, partner);
+
+  SELECT EXISTS(
+    SELECT 1 FROM daily_answers WHERE user_a = a AND user_b = b AND prompt_date = d
+    AND ((caller = a AND user_a_answer IS NOT NULL) OR (caller = b AND user_b_answer IS NOT NULL))
+  ) INTO answered;
+  IF NOT answered THEN d := d - 1; END IF;
+
+  LOOP
+    SELECT EXISTS(
+      SELECT 1 FROM daily_answers WHERE user_a = a AND user_b = b AND prompt_date = d
+      AND ((caller = a AND user_a_answer IS NOT NULL) OR (caller = b AND user_b_answer IS NOT NULL))
+    ) INTO answered;
+    EXIT WHEN NOT answered;
+    streak := streak + 1;
+    d := d - 1;
+  END LOOP;
+
+  RETURN streak;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_journal_streak() TO authenticated;
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
