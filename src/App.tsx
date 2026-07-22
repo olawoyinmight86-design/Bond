@@ -12,6 +12,8 @@ import ChatScreen from './screens/ChatScreen';
 import PhotoboothScreen from './screens/PhotoboothScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import GamesScreen from './screens/GamesScreen';
+import BucketListScreen from './screens/BucketListScreen';
+import LoveLettersScreen from './screens/LoveLettersScreen';
 import AppShell from './components/AppShell';
 
 export default function App() {
@@ -49,6 +51,8 @@ export default function App() {
         <Route path="/chat" element={<ChatScreen />} />
         <Route path="/photobooth" element={<PhotoboothScreen />} />
         <Route path="/games" element={<GamesScreen />} />
+        <Route path="/bucket-list" element={<BucketListScreen />} />
+        <Route path="/love-letters" element={<LoveLettersScreen />} />
         <Route path="/settings" element={<SettingsScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

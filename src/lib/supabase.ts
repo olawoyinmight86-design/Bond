@@ -31,6 +31,9 @@ export type Profile = {
   onboarding_complete: boolean;
   created_at: string;
   phone_number?: string | null;
+  now_playing_title?: string | null;
+  now_playing_artist?: string | null;
+  now_playing_at?: string | null;
 };
 
 export type TimelineEntry = {

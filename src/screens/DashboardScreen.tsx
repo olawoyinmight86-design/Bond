@@ -5,14 +5,15 @@ import { formatDistanceToNow, differenceInCalendarDays } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { avatarEmoji, moodEmoji } from '../lib/emoji';
 import { useOnlineStatus } from '../lib/useOnlineStatus';
-import { Sparkles, ArrowUpRight, MessageCircleQuestion, Gamepad2, CalendarHeart } from 'lucide-react';
+import { Sparkles, ArrowUpRight, MessageCircleQuestion, Gamepad2, CalendarHeart, Music, X } from 'lucide-react';
+import { musicSearchLinks } from '../lib/music';
 
 type PartnerData = { profile: Profile | null; online: boolean; lastSeen: string | null };
 type DailyAnswerRow = { question: string; user_a: string; user_a_answer: string | null; user_b_answer: string | null };
 type UpcomingDate = { title: string; event_date: string; recurring_yearly: boolean };
 
 export default function DashboardScreen() {
-  const { profile } = useAuth();
+  const { profile, updateProfile } = useAuth();
   const navigate = useNavigate();
   const online = useOnlineStatus();
   const [partner, setPartner] = useState<PartnerData>(() => {
@@ -28,6 +29,8 @@ export default function DashboardScreen() {
   const [myAnswer, setMyAnswer] = useState('');
   const [submittingAnswer, setSubmittingAnswer] = useState(false);
   const [upcoming, setUpcoming] = useState<UpcomingDate | null>(() => cacheGet<UpcomingDate>('upcoming_date'));
+  const [nowPlayingInput, setNowPlayingInput] = useState('');
+  const [savingNowPlaying, setSavingNowPlaying] = useState(false);
 
   const loadPartner = useCallback(async () => {
     if (!profile?.paired_with) return;
@@ -142,6 +145,23 @@ export default function DashboardScreen() {
     }
   }, [profile?.id]);
 
+  const setNowPlaying = async () => {
+    if (!nowPlayingInput.trim()) return;
+    setSavingNowPlaying(true);
+    const [titlePart, ...rest] = nowPlayingInput.split(' - ');
+    await updateProfile({
+      now_playing_title: rest.length ? rest.join(' - ').trim() : titlePart.trim(),
+      now_playing_artist: rest.length ? titlePart.trim() : '',
+      now_playing_at: new Date().toISOString(),
+    });
+    setNowPlayingInput('');
+    setSavingNowPlaying(false);
+  };
+
+  const clearNowPlaying = async () => {
+    await updateProfile({ now_playing_title: null, now_playing_artist: null, now_playing_at: null });
+  };
+
   useEffect(() => { loadPartner(); loadStats(); loadDaily(); loadUpcoming(); }, [loadPartner, loadStats, loadDaily, loadUpcoming]);
 
   useEffect(() => {
@@ -216,6 +236,43 @@ export default function DashboardScreen() {
         </div>
       </div>
 
+      {partner.profile?.now_playing_title && (() => {
+        const links = musicSearchLinks(partner.profile.now_playing_title!, partner.profile.now_playing_artist ?? '');
+        return (
+          <div className="flex items-center gap-3 rounded-2xl bg-ink-900 p-4 text-white shadow-soft animate-slide-up">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white/10">
+              <Music size={16} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium">{partner.profile.now_playing_title}</p>
+              <p className="truncate text-xs text-white/50">{partner.profile.display_name} is playing{partner.profile.now_playing_artist ? ` · ${partner.profile.now_playing_artist}` : ''}</p>
+            </div>
+            <a href={links.spotify} target="_blank" rel="noreferrer" className="flex-shrink-0 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium">Listen</a>
+          </div>
+        );
+      })()}
+
+      <div className="rounded-2xl bg-white p-4 shadow-soft animate-slide-up">
+        {profile.now_playing_title ? (
+          <div className="flex items-center gap-3">
+            <Music size={15} className="flex-shrink-0 text-brand-400" />
+            <p className="min-w-0 flex-1 truncate text-sm text-ink-700">Sharing: <b>{profile.now_playing_title}</b>{profile.now_playing_artist ? ` · ${profile.now_playing_artist}` : ''}</p>
+            <button onClick={clearNowPlaying} className="flex-shrink-0 text-ink-300"><X size={15} /></button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Music size={15} className="flex-shrink-0 text-ink-300" />
+            <input
+              value={nowPlayingInput} onChange={(e) => setNowPlayingInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && setNowPlaying()}
+              placeholder="Share what you're playing (Song - Artist)"
+              className="min-w-0 flex-1 bg-transparent text-sm text-ink-700 placeholder-ink-400 outline-none"
+            />
+            <button onClick={setNowPlaying} disabled={savingNowPlaying || !nowPlayingInput.trim()} className="flex-shrink-0 text-xs font-medium text-brand-500 disabled:opacity-40">Share</button>
+          </div>
+        )}
+      </div>
+
       {dailyRow && (
         <div className="rounded-2xl bg-white p-5 shadow-soft animate-slide-up">
           <div className="mb-2 flex items-center gap-2 text-brand-500">
@@ -288,6 +345,15 @@ export default function DashboardScreen() {
         </button>
         <button onClick={() => navigate('/games')} className="group flex flex-col items-center gap-1.5 rounded-2xl bg-white p-4 shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-0.5">
           <span className="flex items-center gap-1 text-sm font-medium text-ink-700"><Gamepad2 size={14} /> Games</span>
+        </button>
+        <button onClick={() => navigate('/bucket-list')} className="group flex flex-col items-center gap-1.5 rounded-2xl bg-white p-4 shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-0.5">
+          <span className="text-sm font-medium text-ink-700">Bucket List</span>
+        </button>
+        <button onClick={() => navigate('/love-letters')} className="group flex flex-col items-center gap-1.5 rounded-2xl bg-white p-4 shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-0.5">
+          <span className="text-sm font-medium text-ink-700">Letters</span>
+        </button>
+        <button onClick={() => navigate('/photobooth')} className="group flex flex-col items-center gap-1.5 rounded-2xl bg-white p-4 shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-0.5">
+          <span className="text-sm font-medium text-ink-700">Booth</span>
         </button>
       </div>
     </div>

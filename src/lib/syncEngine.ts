@@ -30,6 +30,8 @@ export async function composeMessage(params: {
   durationMs?: number;
   replyToPreview?: string;
   replyToSenderId?: string;
+  scheduledFor?: string;
+  expiresAt?: string;
 }): Promise<LocalMessage> {
   const client_id = crypto.randomUUID();
   const created_at = new Date().toISOString();
@@ -48,6 +50,8 @@ export async function composeMessage(params: {
     pending: true,
     replyToPreview: params.replyToPreview,
     replyToSenderId: params.replyToSenderId,
+    scheduledFor: params.scheduledFor,
+    expiresAt: params.expiresAt,
   };
 
   await cacheLocalMessage(local);
@@ -65,6 +69,8 @@ export async function composeMessage(params: {
     attempts: 0,
     replyToPreview: params.replyToPreview,
     replyToSenderId: params.replyToSenderId,
+    scheduledFor: params.scheduledFor,
+    expiresAt: params.expiresAt,
   };
   await addToOutbox(outboxItem);
   notify();
@@ -111,6 +117,8 @@ export async function flushOutbox(): Promise<void> {
             client_id: item.client_id,
             reply_to_preview: item.replyToPreview,
             reply_to_sender_id: item.replyToSenderId,
+            scheduled_for: item.scheduledFor,
+            expires_at: item.expiresAt,
           })
           .select('id, media_path')
           .maybeSingle();

@@ -24,6 +24,8 @@ export type OutboxItem = {
   attempts: number;
   replyToPreview?: string;
   replyToSenderId?: string;
+  scheduledFor?: string;
+  expiresAt?: string;
 };
 
 export type LocalMessage = {
@@ -42,6 +44,8 @@ export type LocalMessage = {
   reactions?: Record<string, string>;
   replyToPreview?: string;
   replyToSenderId?: string;
+  scheduledFor?: string | null;
+  expiresAt?: string | null;
   pinned?: boolean;
   edited_at?: string | null;
   deleted_for_everyone?: boolean;

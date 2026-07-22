@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '../lib/auth';
 import { supabase, cacheGet, type Profile } from '../lib/supabase';
 import { format } from 'date-fns';
-import { Send, Mic, Image as ImageIcon, PenTool, Clock, CheckCheck, ChevronUp, MessageSquareText, Reply, X as XIcon, Search, Pin, Pencil, Trash2 } from 'lucide-react';
+import { Send, Mic, Image as ImageIcon, PenTool, Clock, CheckCheck, ChevronUp, MessageSquareText, Reply, X as XIcon, Search, Pin, Pencil, Trash2, Timer, CalendarClock } from 'lucide-react';
 import { useOnlineStatus } from '../lib/useOnlineStatus';
 import { composeMessage, onQueueChange } from '../lib/syncEngine';
 import { setBadgeCount } from '../lib/badge';
@@ -33,6 +33,9 @@ export default function ChatScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [stuckCount, setStuckCount] = useState(0);
   const [replyingTo, setReplyingTo] = useState<{ preview: string; senderId: string } | null>(null);
+  const [disappearingHours, setDisappearingHours] = useState<number | null>(null);
+  const [scheduleAt, setScheduleAt] = useState('');
+  const [showSchedulePicker, setShowSchedulePicker] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -74,6 +77,7 @@ export default function ChatScreen() {
   const syncFromServer = useCallback(async () => {
     if (!profile?.id || !partnerId || !online) return;
     try {
+      await supabase.rpc('delete_expired_messages');
       const { data } = await supabase
         .from('messages')
         .select('*')
@@ -208,11 +212,12 @@ export default function ChatScreen() {
     return msg.content.length > 80 ? msg.content.slice(0, 80) + '…' : msg.content;
   };
 
-  const send = async (payload: { type: 'text' | 'photo' | 'voice' | 'drawing'; content?: string; mediaBlob?: Blob; mediaMime?: string; durationMs?: number }) => {
+  const send = async (payload: { type: 'text' | 'photo' | 'voice' | 'drawing'; content?: string; mediaBlob?: Blob; mediaMime?: string; durationMs?: number; scheduledFor?: string }) => {
     if (!profile?.id || !partnerId) return;
     await composeMessage({
       senderId: profile.id, recipientId: partnerId, ...payload,
       replyToPreview: replyingTo?.preview, replyToSenderId: replyingTo?.senderId,
+      expiresAt: disappearingHours ? new Date(Date.now() + disappearingHours * 3600_000).toISOString() : undefined,
     });
     setReplyingTo(null);
     setMode('text');
@@ -222,7 +227,13 @@ export default function ChatScreen() {
     if (!input.trim()) return;
     const text = input.trim();
     setInput('');
-    send({ type: 'text', content: text });
+    if (scheduleAt) {
+      send({ type: 'text', content: text, scheduledFor: new Date(scheduleAt).toISOString() });
+      setScheduleAt('');
+      setShowSchedulePicker(false);
+    } else {
+      send({ type: 'text', content: text });
+    }
   };
 
   const handlePhotoPicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -457,6 +468,24 @@ export default function ChatScreen() {
             <button onClick={() => setReplyingTo(null)} className="flex-shrink-0 text-ink-300"><XIcon size={16} /></button>
           </div>
         )}
+        {(disappearingHours || showSchedulePicker) && mode === 'text' && (
+          <div className="mb-2 space-y-2 animate-slide-up">
+            {showSchedulePicker && (
+              <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2 shadow-soft">
+                <CalendarClock size={14} className="flex-shrink-0 text-brand-400" />
+                <input type="datetime-local" value={scheduleAt} onChange={(e) => setScheduleAt(e.target.value)} className="flex-1 bg-transparent text-xs text-ink-700 outline-none" />
+                <button onClick={() => { setShowSchedulePicker(false); setScheduleAt(''); }} className="flex-shrink-0 text-ink-300"><XIcon size={14} /></button>
+              </div>
+            )}
+            {disappearingHours && (
+              <div className="flex items-center gap-2 rounded-xl bg-accent-50 px-3 py-2 text-xs text-accent-700">
+                <Timer size={13} className="flex-shrink-0" />
+                <span className="flex-1">Disappearing mode on — new messages vanish after {disappearingHours}h</span>
+                <button onClick={() => setDisappearingHours(null)} className="flex-shrink-0 font-medium">Off</button>
+              </div>
+            )}
+          </div>
+        )}
         {mode === 'voice' && (
           <VoiceRecorder
             onSend={(blob, mime, durationMs) => send({ type: 'voice', mediaBlob: blob, mediaMime: mime, durationMs })}
@@ -477,6 +506,20 @@ export default function ChatScreen() {
             <input ref={fileInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoPicked} />
             <button onClick={() => setMode('draw')} className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-ink-400 active:scale-90 transition-transform">
               <PenTool size={19} />
+            </button>
+            <button
+              onClick={() => setDisappearingHours((h) => (h === null ? 24 : h === 24 ? 1 : h === 1 ? 168 : null))}
+              className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl transition-transform active:scale-90 ${disappearingHours ? 'text-accent-500' : 'text-ink-400'}`}
+              title="Disappearing messages"
+            >
+              <Timer size={17} />
+            </button>
+            <button
+              onClick={() => setShowSchedulePicker((s) => !s)}
+              className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl transition-transform active:scale-90 ${showSchedulePicker ? 'text-brand-500' : 'text-ink-400'}`}
+              title="Schedule message"
+            >
+              <CalendarClock size={17} />
             </button>
             <input
               type="text" value={input}
