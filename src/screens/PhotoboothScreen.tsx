@@ -553,26 +553,26 @@ export default function PhotoboothScreen() {
             {partnerId && (
               <button
                 onClick={() => setDuoOpen(true)}
-                className="flex h-9 w-9 items-center justify-center rounded-xl bg-ink-900/50 text-white backdrop-blur-sm transition-all hover:bg-ink-900/70 active:scale-95"
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-ink-900/50 text-white backdrop-blur-sm transition-all hover:bg-ink-900/70 active:scale-95"
               >
                 <Layers size={16} />
               </button>
             )}
             <button
               onClick={() => setShowStickerTray((s) => !s)}
-              className={`flex h-9 w-9 items-center justify-center rounded-xl backdrop-blur-sm transition-all hover:bg-ink-900/70 active:scale-95 ${showStickerTray ? 'bg-brand-500/80 text-white' : 'bg-ink-900/50 text-white/60'}`}
+              className={`flex h-10 w-10 items-center justify-center rounded-xl backdrop-blur-sm transition-all hover:bg-ink-900/70 active:scale-95 ${showStickerTray ? 'bg-brand-500/80 text-white' : 'bg-ink-900/50 text-white/60'}`}
             >
               <SparklesIcon size={16} />
             </button>
             <button
               onClick={() => setMirrored(m => !m)}
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-ink-900/50 text-white backdrop-blur-sm transition-all hover:bg-ink-900/70 active:scale-95"
+              className="flex h-10 w-10 items-center justify-center rounded-xl bg-ink-900/50 text-white backdrop-blur-sm transition-all hover:bg-ink-900/70 active:scale-95"
             >
               <FlipHorizontal size={17} />
             </button>
             <button
               onClick={() => setShowPoseOverlay(s => !s)}
-              className={`flex h-9 w-9 items-center justify-center rounded-xl backdrop-blur-sm transition-all hover:bg-ink-900/70 active:scale-95 ${showPoseOverlay ? 'bg-brand-500/80 text-white' : 'bg-ink-900/50 text-white/60'}`}
+              className={`flex h-10 w-10 items-center justify-center rounded-xl backdrop-blur-sm transition-all hover:bg-ink-900/70 active:scale-95 ${showPoseOverlay ? 'bg-brand-500/80 text-white' : 'bg-ink-900/50 text-white/60'}`}
             >
               <Users size={17} />
             </button>

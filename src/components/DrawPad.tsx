@@ -84,11 +84,11 @@ export default function DrawPad({ onSend, onCancel }: Props) {
           <Eraser size={14} /> Clear
         </button>
         <div className="flex gap-2">
-          <button onClick={onCancel} className="flex h-9 w-9 items-center justify-center rounded-xl text-ink-300"><X size={16} /></button>
+          <button onClick={onCancel} className="flex h-10 w-10 items-center justify-center rounded-xl text-ink-300"><X size={16} /></button>
           <button
             onClick={send}
             disabled={!hasDrawn}
-            className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-500 text-white disabled:opacity-30"
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-500 text-white disabled:opacity-30"
           >
             <Send size={16} />
           </button>

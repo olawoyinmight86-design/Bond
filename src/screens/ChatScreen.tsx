@@ -303,7 +303,7 @@ export default function ChatScreen() {
             {partnerTyping ? <span className="text-brand-500 font-medium">typing...</span> : online ? 'Your private conversation' : "Offline — saved on your phone, sends the moment you're back"}
           </p>
         </div>
-        <button onClick={() => setSearchOpen((s) => !s)} className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors ${searchOpen ? 'bg-brand-500 text-white' : 'bg-surface text-ink-400 shadow-soft'}`}>
+        <button onClick={() => setSearchOpen((s) => !s)} className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl transition-colors ${searchOpen ? 'bg-brand-500 text-white' : 'bg-surface text-ink-400 shadow-soft'}`}>
           <Search size={16} />
         </button>
       </div>
