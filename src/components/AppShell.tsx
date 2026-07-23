@@ -80,13 +80,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <InstallPrompt />
       </div>
 
-      <main className="mx-auto max-w-2xl px-5 py-6 pb-28 safe-bottom">
+      <main className="mx-auto max-w-2xl px-5 py-6 pb-40 safe-bottom">
         {children}
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-30 safe-bottom">
         <div className="mx-auto max-w-2xl px-5 pb-3">
-          <div className="glass flex items-center justify-around rounded-2xl px-2 py-2 shadow-float">
+          <div className="flex items-center justify-around rounded-2xl bg-surface px-2 py-2 shadow-float border border-ink-200/60">
             {navItems.map(({ to, label, icon: Icon }) => (
               <NavLink
                 key={to}

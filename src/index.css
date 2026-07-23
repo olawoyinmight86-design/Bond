@@ -182,6 +182,13 @@
 }
 
 @layer utilities {
+  /* Mobile browsers (esp. Android Chrome) resize their address bar in and
+     out of view, but 100vh is calculated against the LARGEST possible
+     viewport — so min-h-screen elements can end up taller than what's
+     actually visible, pushing content to overlap the fixed bottom nav.
+     100dvh tracks the real visible viewport; vh stays as a fallback for
+     browsers that don't support dvh yet. */
+  .min-h-screen { min-height: 100vh; min-height: 100dvh; }
   .safe-top { padding-top: env(safe-area-inset-top); }
   .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
   .no-scrollbar::-webkit-scrollbar { display: none; }
