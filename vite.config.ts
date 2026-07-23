@@ -13,7 +13,7 @@ export default defineConfig({
       injectManifest: {
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       },
-      includeAssets: ['favicon.svg', 'robots.txt', 'icon-192.png', 'icon-512.png'],
+      includeAssets: ['favicon.svg', 'robots.txt', 'icon-192.png', 'icon-512.png', 'icon-192-maskable.png', 'icon-512-maskable.png'],
       manifest: {
         id: '/',
         name: 'Bond — Stay close, grow together',
@@ -27,9 +27,15 @@ export default defineConfig({
         orientation: 'portrait',
         categories: ['social', 'lifestyle'],
         icons: [
-          { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'icon-192-maskable.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+          { src: 'icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+        shortcuts: [
+          { name: 'Chat', short_name: 'Chat', url: '/chat', icons: [{ src: 'icon-192.png', sizes: '192x192' }] },
+          { name: 'Photobooth', short_name: 'Booth', url: '/photobooth', icons: [{ src: 'icon-192.png', sizes: '192x192' }] },
+          { name: 'Games', short_name: 'Games', url: '/games', icons: [{ src: 'icon-192.png', sizes: '192x192' }] },
         ],
       },
     }),

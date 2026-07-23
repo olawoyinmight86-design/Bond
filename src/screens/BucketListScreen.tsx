@@ -54,7 +54,7 @@ export default function BucketListScreen() {
   return (
     <div className="animate-fade-in">
       <div className="mb-6 flex items-center gap-3">
-        <button onClick={() => navigate('/')} className="flex h-9 w-9 items-center justify-center rounded-xl bg-surface shadow-soft"><ArrowLeft size={16} /></button>
+        <button onClick={() => navigate('/')} className="flex h-11 w-11 items-center justify-center rounded-xl bg-surface shadow-soft active:scale-95 transition-transform"><ArrowLeft size={16} /></button>
         <h1 className="font-display text-display-sm text-ink-900">Bucket List</h1>
       </div>
 
