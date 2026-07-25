@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { supabase } from './supabase';
 import { useAuth } from './auth';
+import { notifyIncomingMessage } from './localReminders';
 
 export type Activity = 'idle' | 'typing' | 'recording' | 'in_booth' | 'in_games' | 'listening';
 
@@ -25,6 +26,7 @@ export function PartnerActivityProvider({ children }: { children: ReactNode }) {
   const [partnerDraft, setPartnerDraft] = useState('');
   const [partnerActivity, setPartnerActivity] = useState<Activity>('idle');
   const [partnerName, setPartnerName] = useState('Partner');
+  const partnerNameRef = useRef('Partner');
   const [lastMessagePreview, setLastMessagePreview] = useState<PartnerActivityState['lastMessagePreview']>(null);
   const [bubbleDismissedAt, setBubbleDismissedAt] = useState(0);
 
@@ -61,7 +63,7 @@ export function PartnerActivityProvider({ children }: { children: ReactNode }) {
     channelRef.current = channel;
 
     supabase.from('profiles').select('display_name').eq('id', partnerId).maybeSingle()
-      .then(({ data }) => { if (data?.display_name) setPartnerName(data.display_name); });
+      .then(({ data }) => { if (data?.display_name) { setPartnerName(data.display_name); partnerNameRef.current = data.display_name; } });
 
     // Any new message from the partner clears the draft preview (it just
     // became a real message) and surfaces a brief "just sent" bubble.
@@ -71,6 +73,7 @@ export function PartnerActivityProvider({ children }: { children: ReactNode }) {
         setPartnerActivity('idle');
         const preview = row.type === 'text' ? row.content : row.type === 'photo' ? '📷 Photo' : row.type === 'voice' ? '🎙️ Voice note' : '✍️ Drawing';
         setLastMessagePreview({ text: preview, senderIsMe: false, at: Date.now() });
+        notifyIncomingMessage(partnerNameRef.current, preview, row.id);
       })
       .subscribe();
 

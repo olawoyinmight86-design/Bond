@@ -52,6 +52,29 @@ async function showLocal(title: string, body: string, tag: string) {
   await reg.showNotification(title, { body, icon: '/icon-192.png', badge: '/icon-192.png', tag });
 }
 
+/** Fires the instant a message arrives, no VAPID/push subscription needed —
+ * works purely off the Notification API + the realtime subscription that's
+ * already running while the app is open (including in a background tab).
+ * Honest limit: this can't wake the app from fully closed/killed — only a
+ * real push event (VAPID) can do that. While the app is open anywhere,
+ * though, this fires with zero server-side push setup. */
+export async function notifyIncomingMessage(senderName: string, preview: string, messageId: string) {
+  if (!localRemindersEnabled()) return;
+  if (document.visibilityState === 'visible') return; // they're already looking at it
+  const reg = await navigator.serviceWorker.ready;
+  await reg.showNotification(senderName, {
+    body: preview,
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    tag: 'incoming-message',
+    data: { url: '/chat', messageId },
+    actions: [
+      { action: 'reply', title: 'Reply' },
+      { action: 'read', title: 'Mark as read' },
+    ],
+  } as NotificationOptions & { actions?: { action: string; title: string }[] });
+}
+
 export type ReminderContext = {
   hasUnansweredPrompt: boolean;
   moodLoggedToday: boolean;
