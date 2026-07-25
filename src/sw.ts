@@ -62,7 +62,7 @@ self.addEventListener('periodicsync', (event: any) => {
 // if the app is fully closed. Requires the send-push edge function to be
 // deployed (see PUSH_SETUP.md).
 self.addEventListener('push', (event: PushEvent) => {
-  let payload: { title?: string; body?: string; url?: string; image?: string } = {};
+  let payload: { title?: string; body?: string; url?: string; image?: string; messageId?: string } = {};
   try { payload = event.data?.json() ?? {}; } catch { /* non-JSON payload, ignore */ }
 
   const title = payload.title ?? 'Bond';
@@ -74,19 +74,38 @@ self.addEventListener('push', (event: PushEvent) => {
       icon: '/icon-192.png',
       badge: '/icon-192.png',
       image: payload.image,
-      data: { url: payload.url ?? '/chat' },
-    } as NotificationOptions & { image?: string })
+      data: { url: payload.url ?? '/chat', messageId: payload.messageId },
+      actions: [
+        { action: 'reply', title: 'Reply' },
+        { action: 'read', title: 'Mark as read' },
+      ],
+    } as NotificationOptions & { image?: string; actions?: { action: string; title: string }[] })
   );
 });
 
 self.addEventListener('notificationclick', (event: NotificationEvent) => {
   event.notification.close();
-  const url = (event.notification.data as { url?: string })?.url ?? '/chat';
+  const data = event.notification.data as { url?: string; messageId?: string };
+  const url = data?.url ?? '/chat';
+
+  if (event.action === 'read' && data?.messageId) {
+    // Mark-as-read fires a lightweight message to any open app window,
+    // which does the actual authenticated Supabase update — a service
+    // worker has no logged-in session of its own to do this directly.
+    event.waitUntil(
+      self.clients.matchAll({ type: 'window' }).then((clients) => {
+        clients.forEach((c) => c.postMessage({ type: 'mark-read', messageId: data.messageId }));
+      })
+    );
+    return;
+  }
+
+  const target = event.action === 'reply' ? `${url}?focus=1` : url;
   event.waitUntil(
     self.clients.matchAll({ type: 'window' }).then((clients) => {
       const existing = clients.find((c) => 'focus' in c);
-      if (existing) return (existing as WindowClient).focus();
-      return self.clients.openWindow(url);
+      if (existing) { (existing as WindowClient).focus(); (existing as WindowClient).navigate?.(target); return; }
+      return self.clients.openWindow(target);
     })
   );
 });

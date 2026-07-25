@@ -3,6 +3,7 @@ import { Camera, Download, FlipHorizontal, X, RotateCcw, Users, Send, Sparkles a
 import { useAuth } from '../lib/auth';
 import { composeMessage } from '../lib/syncEngine';
 import { supabase } from '../lib/supabase';
+import { usePartnerActivity } from '../lib/partnerActivity';
 
 type Photo = { id: string; dataUrl: string; timestamp: string; pose: string };
 
@@ -147,6 +148,12 @@ export default function PhotoboothScreen() {
   const duoCanvasRef = useRef<HTMLCanvasElement>(null);
 
   const partnerId = profile?.paired_with ?? '';
+  const { sendActivity } = usePartnerActivity();
+
+  useEffect(() => {
+    sendActivity('in_booth');
+    return () => { sendActivity('idle'); };
+  }, []);
 
   const loadDuoRow = useCallback(async () => {
     if (!profile?.id || !partnerId) return;

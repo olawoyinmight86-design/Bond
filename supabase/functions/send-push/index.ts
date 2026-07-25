@@ -21,7 +21,7 @@ webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate);
 
 Deno.serve(async (req) => {
   try {
-    const { recipient_id, sender_id, type, content, media_path } = await req.json();
+    const { message_id, recipient_id, sender_id, type, content, media_path } = await req.json();
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
@@ -56,6 +56,7 @@ Deno.serve(async (req) => {
       body: `${sender?.display_name ?? 'Your partner'} ${label}`,
       url: '/chat',
       image,
+      messageId: message_id,
     });
 
     let sent = 0;

@@ -3,12 +3,14 @@ import { useAuth } from '../lib/auth';
 import { supabase, cacheGet, type Profile } from '../lib/supabase';
 import { format } from 'date-fns';
 import { Send, Mic, Image as ImageIcon, PenTool, Clock, CheckCheck, ChevronUp, MessageSquareText, Reply, X as XIcon, Search, Pin, Pencil, Trash2, Timer, CalendarClock } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { useOnlineStatus } from '../lib/useOnlineStatus';
 import { composeMessage, onQueueChange } from '../lib/syncEngine';
 import { setBadgeCount } from '../lib/badge';
 import { getLocalMessages, getOutbox, cacheLocalMessage, type LocalMessage } from '../lib/offlineDB';
 import { compressImage } from '../lib/imageCompress';
 import { buildSmsFallbackLink, STUCK_THRESHOLD_ATTEMPTS } from '../lib/smsFallback';
+import { usePartnerActivity } from '../lib/partnerActivity';
 import VoiceRecorder from '../components/VoiceRecorder';
 import DrawPad from '../components/DrawPad';
 
@@ -27,7 +29,6 @@ export default function ChatScreen() {
     return cached?.profile?.display_name ?? 'Partner';
   });
   const [partnerPhone, setPartnerPhone] = useState<string | null>(null);
-  const [partnerTyping, setPartnerTyping] = useState(false);
   const [reactionPickerFor, setReactionPickerFor] = useState<string | null>(null);
   const [hasMoreHistory, setHasMoreHistory] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -42,10 +43,9 @@ export default function ChatScreen() {
   const [editText, setEditText] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
   const listRef = useRef<HTMLDivElement>(null);
-  const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  const typingTimeoutRef = useRef<number | null>(null);
-  const lastTypingSentRef = useRef(0);
 
   const partnerId = profile?.paired_with ?? '';
 
@@ -55,6 +55,13 @@ export default function ChatScreen() {
   }, []);
 
   useEffect(() => { loadLocal(); }, [loadLocal]);
+
+  useEffect(() => {
+    if (searchParams.get('focus') === '1') {
+      inputRef.current?.focus();
+      setSearchParams((prev) => { prev.delete('focus'); return prev; }, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
   useEffect(() => {
     const unsubscribe = onQueueChange(loadLocal);
     return () => { unsubscribe(); };
@@ -183,27 +190,10 @@ export default function ChatScreen() {
     return () => { supabase.removeChannel(channel); };
   }, [profile?.id, online, syncFromServer]);
 
-  // Typing indicator — ephemeral, never touches the database.
-  useEffect(() => {
-    if (!profile?.id || !partnerId || !online) return;
-    const pairKey = [profile.id, partnerId].sort().join('-');
-    const channel = supabase.channel(`typing-${pairKey}`, { config: { broadcast: { self: false } } });
-    channel.on('broadcast', { event: 'typing' }, () => {
-      setPartnerTyping(true);
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      typingTimeoutRef.current = window.setTimeout(() => setPartnerTyping(false), 3000);
-    }).subscribe();
-    typingChannelRef.current = channel;
-    return () => { supabase.removeChannel(channel); typingChannelRef.current = null; };
-  }, [profile?.id, partnerId, online]);
-
-  const notifyTyping = () => {
-    if (!online || !typingChannelRef.current) return;
-    const now = Date.now();
-    if (now - lastTypingSentRef.current < 2000) return; // throttle
-    lastTypingSentRef.current = now;
-    typingChannelRef.current.send({ type: 'broadcast', event: 'typing', payload: {} });
-  };
+  // Live writing preview: the partner's actual draft text, sent debounced
+  // via the shared activity channel — replaces the old boolean-only
+  // "is typing" ping.
+  const { partnerDraft, sendDraft } = usePartnerActivity();
 
   const previewFor = (msg: LocalMessage) => {
     if (msg.type === 'photo') return '📷 Photo';
@@ -227,6 +217,7 @@ export default function ChatScreen() {
     if (!input.trim()) return;
     const text = input.trim();
     setInput('');
+    sendDraft('');
     if (scheduleAt) {
       send({ type: 'text', content: text, scheduledFor: new Date(scheduleAt).toISOString() });
       setScheduleAt('');
@@ -300,7 +291,9 @@ export default function ChatScreen() {
         <div className="min-w-0 flex-1">
           <h1 className="font-display text-lg text-ink-900">{partnerName}</h1>
           <p className="truncate text-xs text-ink-400">
-            {partnerTyping ? <span className="text-brand-500 font-medium">typing...</span> : online ? 'Your private conversation' : "Offline — saved on your phone, sends the moment you're back"}
+            {partnerDraft ? (
+              <span className="text-brand-500 font-medium">"{partnerDraft.length > 34 ? partnerDraft.slice(0, 34) + '…' : partnerDraft}"</span>
+            ) : online ? 'Your private conversation' : "Offline — saved on your phone, sends the moment you're back"}
           </p>
         </div>
         <button onClick={() => setSearchOpen((s) => !s)} className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl transition-colors ${searchOpen ? 'bg-brand-500 text-white' : 'bg-surface text-ink-400 shadow-soft'}`}>
@@ -522,8 +515,9 @@ export default function ChatScreen() {
               <CalendarClock size={17} />
             </button>
             <input
+              ref={inputRef}
               type="text" value={input}
-              onChange={(e) => { setInput(e.target.value); notifyTyping(); }}
+              onChange={(e) => { setInput(e.target.value); sendDraft(e.target.value); }}
               onKeyDown={(e) => e.key === 'Enter' && handleSendText()}
               className="min-w-0 flex-1 bg-transparent px-2 py-2 text-[15px] text-ink-900 placeholder-ink-400 outline-none"
               placeholder="Message..."

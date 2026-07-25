@@ -8,15 +8,28 @@ import { useOnlineStatus } from '../lib/useOnlineStatus';
 import { Sparkles, ArrowUpRight, MessageCircleQuestion, Gamepad2, CalendarHeart, Music, X, ListChecks, Mail } from 'lucide-react';
 import { musicSearchLinks } from '../lib/music';
 import { runReminderCheck } from '../lib/localReminders';
+import { usePartnerActivity, type Activity } from '../lib/partnerActivity';
 
 type PartnerData = { profile: Profile | null; online: boolean; lastSeen: string | null };
 type DailyAnswerRow = { question: string; user_a: string; user_a_answer: string | null; user_b_answer: string | null };
 type UpcomingDate = { title: string; event_date: string; recurring_yearly: boolean };
 
+function activityLabel(online: boolean, activity: Activity, draft: string, lastSeen: string | null): string {
+  if (draft) return 'Typing…';
+  if (activity === 'recording') return 'Recording a voice note 🎙️';
+  if (activity === 'in_booth') return 'In the Photobooth 📸';
+  if (activity === 'in_games') return 'Playing a game 🎮';
+  if (activity === 'listening') return 'Listening to music 🎵';
+  if (online) return 'Online now';
+  if (lastSeen) return `Last seen ${formatDistanceToNow(new Date(lastSeen))} ago`;
+  return 'Offline';
+}
+
 export default function DashboardScreen() {
   const { profile, updateProfile } = useAuth();
   const navigate = useNavigate();
   const online = useOnlineStatus();
+  const { partnerActivity, partnerDraft } = usePartnerActivity();
   const [partner, setPartner] = useState<PartnerData>(() => {
     const cached = cacheGet<PartnerData>('partner_data');
     return cached ?? { profile: null, online: false, lastSeen: null };
@@ -248,7 +261,7 @@ export default function DashboardScreen() {
             <div className="min-w-0 flex-1">
               <p className="truncate font-display text-lg text-ink-900">{partner.profile.display_name}</p>
               <p className="truncate text-sm text-ink-500">
-                {partner.online ? 'Online now' : partner.lastSeen ? `Last seen ${formatDistanceToNow(new Date(partner.lastSeen))} ago` : 'Offline'}
+                {activityLabel(partner.online, partnerActivity, partnerDraft, partner.lastSeen)}
               </p>
             </div>
             {streak > 0 && (
@@ -400,10 +413,11 @@ export default function DashboardScreen() {
         </div>
       )}
 
-      {/* Quick access */}
+      {/* Quick access — horizontal scroll so it can never wrap into a second
+          row and collide with the fixed bottom nav, regardless of screen height */}
       <div className="animate-slide-up stagger-3">
         <p className="mb-2.5 px-1 text-[13px] font-medium text-ink-400 uppercase tracking-wider">Quick access</p>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="-mx-5 flex gap-3 overflow-x-auto px-5 pb-1 no-scrollbar snap-x snap-mandatory">
           {[
             { to: '/timeline', label: 'Timeline', icon: ArrowUpRight },
             { to: '/chat', label: 'Chat', icon: ArrowUpRight },
@@ -415,10 +429,10 @@ export default function DashboardScreen() {
             <button
               key={to}
               onClick={() => navigate(to)}
-              className="group flex min-h-[76px] flex-col items-center justify-center gap-2 rounded-2xl bg-surface p-3 text-center shadow-soft transition-all duration-300 hover:shadow-lift hover:-translate-y-0.5 active:scale-95"
+              className="group flex w-[92px] flex-shrink-0 snap-start flex-col items-center justify-center gap-2 rounded-2xl bg-surface p-3 text-center shadow-soft transition-all duration-300 hover:shadow-lift active:scale-95"
             >
               <Icon size={19} className="text-ink-300 transition-colors group-hover:text-brand-400" />
-              <span className="text-[13px] font-medium leading-tight text-ink-700">{label}</span>
+              <span className="text-[12px] font-medium leading-tight text-ink-700">{label}</span>
             </button>
           ))}
         </div>

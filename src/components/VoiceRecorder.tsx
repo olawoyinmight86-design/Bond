@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { Mic, Square, Send, X } from 'lucide-react';
+import { usePartnerActivity } from '../lib/partnerActivity';
 
 type Props = {
   onSend: (blob: Blob, mime: string, durationMs: number) => void;
@@ -7,6 +8,7 @@ type Props = {
 };
 
 export default function VoiceRecorder({ onSend, onCancel }: Props) {
+  const { sendActivity } = usePartnerActivity();
   const [recording, setRecording] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [blob, setBlob] = useState<Blob | null>(null);
@@ -38,6 +40,7 @@ export default function VoiceRecorder({ onSend, onCancel }: Props) {
       mediaRecorderRef.current = recorder;
       startRef.current = Date.now();
       setRecording(true);
+      sendActivity('recording');
       timerRef.current = window.setInterval(() => setElapsedMs(Date.now() - startRef.current), 100);
     } catch {
       setError('Microphone unavailable — check permissions.');
@@ -47,6 +50,7 @@ export default function VoiceRecorder({ onSend, onCancel }: Props) {
   const stop = () => {
     mediaRecorderRef.current?.stop();
     setRecording(false);
+    sendActivity('idle');
     if (timerRef.current) clearInterval(timerRef.current);
   };
 

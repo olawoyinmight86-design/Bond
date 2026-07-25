@@ -3,6 +3,7 @@ import { useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Sparkles, X, Check, Shuffle, Flame } from 'lucide-react';
+import { usePartnerActivity } from '../lib/partnerActivity';
 
 type TDState = { turn?: string; promptType?: 'truth' | 'dare' | null; prompt?: string | null; mode?: string; penalty?: string | null };
 type ToTState = { optionA?: string; optionB?: string; picks?: Record<string, 'a' | 'b'> };
@@ -12,6 +13,12 @@ export default function GamesScreen() {
   const { profile } = useAuth();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('truth_or_dare');
+  const { sendActivity } = usePartnerActivity();
+
+  useEffect(() => {
+    sendActivity('in_games');
+    return () => { sendActivity('idle'); };
+  }, []);
   const [tdState, setTdState] = useState<TDState>({});
   const [totState, setTotState] = useState<ToTState>({});
   const [busy, setBusy] = useState(false);
