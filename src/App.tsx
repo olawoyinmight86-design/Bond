@@ -37,7 +37,7 @@ export default function App() {
 
   if (!initialized || loading) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-ink-50">
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-ink-50">
         <BraceletLogo className="h-14 w-14 animate-pulse-soft" glow />
         <div className="font-display text-lg text-ink-400">Bond</div>
       </div>

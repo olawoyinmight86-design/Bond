@@ -470,7 +470,7 @@ export default function PhotoboothScreen() {
   const pose = POSES[poseIndex];
 
   return (
-    <div className="animate-fade-in space-y-5">
+    <div className="animate-fade-in space-y-5 lg:mx-auto lg:max-w-xl">
       <div className="flex items-center justify-between">
         <h1 className="font-display text-display-sm text-ink-900">Photobooth</h1>
         <span className="text-xl">{pose.icon}</span>

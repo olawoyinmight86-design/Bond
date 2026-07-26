@@ -285,7 +285,7 @@ export default function ChatScreen() {
   let lastDate = '';
 
   return (
-    <div className="flex h-[calc(100vh-13rem)] flex-col animate-fade-in">
+    <div className="mx-auto flex h-[calc(100dvh-13rem)] max-w-2xl flex-col animate-fade-in">
       <div className="mb-4 flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface text-xl shadow-soft">💕</div>
         <div className="min-w-0 flex-1">

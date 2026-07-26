@@ -117,7 +117,7 @@ export default function SettingsScreen() {
   if (!profile) return null;
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="animate-fade-in space-y-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-6 lg:space-y-0">
       <h1 className="font-display text-display-sm text-ink-900">Settings</h1>
 
       <section>

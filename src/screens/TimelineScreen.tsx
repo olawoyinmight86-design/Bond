@@ -178,9 +178,9 @@ export default function TimelineScreen() {
           {grouped.map((group) => (
             <div key={group.date}>
               <p className="mb-3 text-[13px] font-medium text-ink-400 uppercase tracking-wider">{formatDateLabel(group.date)}</p>
-              <div className="space-y-3">
+              <div className="space-y-3 lg:columns-2 lg:gap-4 lg:space-y-0">
                 {group.items.map((entry) => (
-                  <div key={entry.id} className="group relative rounded-2xl bg-surface p-4 shadow-soft transition-all duration-300 hover:shadow-lift animate-slide-up">
+                  <div key={entry.id} className="group relative mb-3 break-inside-avoid rounded-2xl bg-surface p-4 shadow-soft transition-all duration-300 hover:shadow-lift animate-slide-up lg:mb-4">
                     <div className="mb-2 flex items-center gap-2">
                       <span className="text-base">{isOwn(entry) ? avatarEmoji(profile?.avatar_emoji) : '💕'}</span>
                       <span className="text-xs text-ink-400">{isOwn(entry) ? 'You' : 'Partner'}</span>

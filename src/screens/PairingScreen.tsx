@@ -96,7 +96,7 @@ export default function PairingScreen() {
 
   if (justPaired) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-ink-50 px-6 text-center animate-fade-in">
+      <div className="flex min-h-dvh flex-col items-center justify-center bg-ink-50 px-6 text-center animate-fade-in">
         <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-brand-50 text-brand-500 animate-scale-in">
           <PartyPopper size={28} />
         </div>
@@ -107,7 +107,7 @@ export default function PairingScreen() {
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-ink-50 px-6">
+    <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-ink-50 px-6">
       <div className="pointer-events-none absolute top-0 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-brand-100/20 blur-3xl" />
 
       <div className="relative z-10 w-full max-w-sm">
