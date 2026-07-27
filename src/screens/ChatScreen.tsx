@@ -285,9 +285,45 @@ export default function ChatScreen() {
   let lastDate = '';
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-13rem)] max-w-2xl flex-col animate-fade-in">
+    <div className="mx-auto flex h-[calc(100dvh-13rem)] max-w-[1280px] gap-6 animate-fade-in lg:h-[calc(100dvh-6rem)]">
+      {/* Desktop-only left panel — partner info + full pinned list. On
+          mobile this simply doesn't render; the chat thread is the only
+          "conversation" there is in a 1:1 app, so there's no separate
+          conversation list to show. */}
+      <aside className="hidden w-[30%] max-w-xs flex-shrink-0 flex-col gap-4 lg:flex">
+        <div className="rounded-2xl bg-surface p-6 shadow-soft">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 text-2xl">💕</div>
+            <div className="min-w-0">
+              <p className="truncate font-display text-lg text-ink-900">{partnerName}</p>
+              <p className="truncate text-xs text-ink-400">{online ? 'Online' : "Offline — you'll sync when back"}</p>
+            </div>
+          </div>
+        </div>
+
+        {pinnedMessages.length > 0 && (
+          <div className="flex-1 overflow-y-auto rounded-2xl bg-surface p-5 shadow-soft no-scrollbar">
+            <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-400">
+              <Pin size={12} /> Pinned messages
+            </p>
+            <div className="space-y-2">
+              {pinnedMessages.map((m) => (
+                <button
+                  key={m.client_id}
+                  onClick={() => scrollToMessage(m.client_id)}
+                  className="w-full rounded-xl bg-ink-50 px-3 py-2.5 text-left text-sm text-ink-600 transition-colors hover:bg-ink-100"
+                >
+                  {previewFor(m)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
       <div className="mb-4 flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface text-xl shadow-soft">💕</div>
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface text-xl shadow-soft lg:hidden">💕</div>
         <div className="min-w-0 flex-1">
           <h1 className="font-display text-lg text-ink-900">{partnerName}</h1>
           <p className="truncate text-xs text-ink-400">
@@ -533,6 +569,7 @@ export default function ChatScreen() {
             )}
           </div>
         )}
+      </div>
       </div>
     </div>
   );
