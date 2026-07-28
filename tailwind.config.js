@@ -69,7 +69,7 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        display: ['Fraunces', 'Georgia', 'serif'],
+        display: ['Poppins', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
       fontSize: {
         'display-lg': ['2.5rem', { lineHeight: '1.1', letterSpacing: '-0.02em' }],
@@ -84,8 +84,8 @@ export default {
         'soft': '0 1px 3px 0 rgba(28,25,23,0.04), 0 1px 2px 0 rgba(28,25,23,0.02)',
         'lift': '0 4px 24px -8px rgba(28,25,23,0.08), 0 2px 8px -4px rgba(28,25,23,0.04)',
         'float': '0 12px 40px -12px rgba(28,25,23,0.12), 0 4px 12px -6px rgba(28,25,23,0.06)',
-        'glow-brand': '0 4px 24px -4px rgba(244,63,94,0.25)',
-        'glow-accent': '0 4px 24px -4px rgba(20,184,166,0.2)',
+        'glow-brand': '0 4px 24px -4px rgb(var(--color-brand-500) / 0.35)',
+        'glow-accent': '0 4px 24px -4px rgb(var(--color-accent-500) / 0.3)',
       },
       animation: {
         'fade-in': 'fadeIn 0.5s cubic-bezier(0.22,1,0.36,1)',

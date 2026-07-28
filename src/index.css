@@ -70,18 +70,18 @@
   --color-accent-800: 146 64 14;
   --color-accent-900: 120 53 15;
 
-  /* Royal Violet primary */
-  --color-brand-50: 245 243 255;
-  --color-brand-100: 237 233 254;
-  --color-brand-200: 221 214 254;
-  --color-brand-300: 196 181 253;
-  --color-brand-400: 167 139 250;
-  --color-brand-500: 124 58 237;
-  --color-brand-600: 109 40 217;
-  --color-brand-700: 91 33 182;
-  --color-brand-800: 76 29 149;
-  --color-brand-900: 46 16 101;
-  --color-brand-secondary: 236 72 153;
+  /* Rose Pink primary — warm and intimate, not violet-forward */
+  --color-brand-50: 255 241 245;
+  --color-brand-100: 255 228 235;
+  --color-brand-200: 254 205 219;
+  --color-brand-300: 253 164 194;
+  --color-brand-400: 255 130 168;
+  --color-brand-500: 255 107 157;
+  --color-brand-600: 236 72 130;
+  --color-brand-700: 219 39 105;
+  --color-brand-800: 190 24 87;
+  --color-brand-900: 131 24 67;
+  --color-brand-secondary: 139 92 246;
 }
 
 [data-theme='lavender'] {
@@ -140,6 +140,8 @@
   :root { color-scheme: light; }
 
   * { -webkit-tap-highlight-color: transparent; }
+
+  .font-display { font-weight: 600; letter-spacing: -0.01em; }
 
   body {
     @apply bg-ink-50 text-ink-900 antialiased;
@@ -207,9 +209,18 @@
     transform-origin: 50% 90%;
     animation: flame-flicker 2.6s ease-in-out infinite;
   }
-  @media (prefers-reduced-motion: reduce) {
-    .flame-flicker { animation: none; }
+  .heart-float {
+    animation: heart-float 1.2s ease-out forwards;
   }
+  @media (prefers-reduced-motion: reduce) {
+    .flame-flicker, .heart-float { animation: none; }
+  }
+}
+
+@keyframes heart-float {
+  0% { opacity: 0; transform: translateY(0) scale(0.6); }
+  15% { opacity: 1; transform: translateY(-8px) scale(1); }
+  100% { opacity: 0; transform: translateY(-42px) scale(0.9) rotate(8deg); }
 }
 
 @keyframes flame-flicker {

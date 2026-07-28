@@ -213,11 +213,16 @@ export default function ChatScreen() {
     setMode('text');
   };
 
+  const [floatingHearts, setFloatingHearts] = useState<number[]>([]);
+
   const handleSendText = () => {
     if (!input.trim()) return;
     const text = input.trim();
     setInput('');
     sendDraft('');
+    const heartId = Date.now();
+    setFloatingHearts((prev) => [...prev, heartId]);
+    setTimeout(() => setFloatingHearts((prev) => prev.filter((id) => id !== heartId)), 1200);
     if (scheduleAt) {
       send({ type: 'text', content: text, scheduledFor: new Date(scheduleAt).toISOString() });
       setScheduleAt('');
@@ -559,7 +564,10 @@ export default function ChatScreen() {
               placeholder="Message..."
             />
             {input.trim() ? (
-              <button onClick={handleSendText} className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-brand-500 text-white transition-all duration-200 active:scale-90">
+              <button onClick={handleSendText} className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-brand-500 text-white transition-all duration-200 active:scale-90">
+                {floatingHearts.map((id) => (
+                  <span key={id} className="heart-float pointer-events-none absolute text-sm">❤️</span>
+                ))}
                 <Send size={18} />
               </button>
             ) : (

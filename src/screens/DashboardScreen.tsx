@@ -44,6 +44,7 @@ export default function DashboardScreen() {
   const [myAnswer, setMyAnswer] = useState('');
   const [submittingAnswer, setSubmittingAnswer] = useState(false);
   const [upcoming, setUpcoming] = useState<UpcomingDate | null>(() => cacheGet<UpcomingDate>('upcoming_date'));
+  const [daysTogether, setDaysTogether] = useState<number | null>(() => cacheGet<number>('days_together'));
   const [nowPlayingInput, setNowPlayingInput] = useState('');
   const [savingNowPlaying, setSavingNowPlaying] = useState(false);
   const [todayTab, setTodayTab] = useState<'question' | 'tip'>('question');
@@ -178,6 +179,12 @@ export default function DashboardScreen() {
       const { data } = await supabase.from('important_dates').select('title, event_date, recurring_yearly');
       if (!data || data.length === 0) { setUpcoming(null); return; }
 
+      const anniversary = data.find((d) => /anniversary/i.test(d.title));
+      if (anniversary) {
+        const days = differenceInCalendarDays(new Date(), new Date(anniversary.event_date));
+        if (days >= 0) { setDaysTogether(days); cacheSet('days_together', days); }
+      }
+
       const today = new Date();
       const withNextOccurrence = data.map((d) => {
         let next = new Date(d.event_date);
@@ -286,8 +293,17 @@ export default function DashboardScreen() {
 
           <div className="relative mt-4 flex items-center gap-3 border-t border-ink-200/50 pt-3.5">
             <div className="flex flex-1 items-baseline gap-1.5">
-              <span className="font-display text-xl text-ink-900">{momentCount}</span>
-              <span className="text-xs text-ink-400">moments</span>
+              {daysTogether !== null ? (
+                <>
+                  <span className="font-display text-xl text-ink-900">{daysTogether}</span>
+                  <span className="text-xs text-ink-400">days together ❤️</span>
+                </>
+              ) : (
+                <>
+                  <span className="font-display text-xl text-ink-900">{momentCount}</span>
+                  <span className="text-xs text-ink-400">moments</span>
+                </>
+              )}
             </div>
             <div className="h-8 w-px bg-ink-200/70" />
             <div className="flex flex-1 items-center gap-1.5">
