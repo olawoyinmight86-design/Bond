@@ -240,9 +240,12 @@ export default function DashboardScreen() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <p className="text-sm text-ink-400">{greeting}, {profile.display_name}</p>
-        <h1 className="font-display text-display text-ink-900 mt-1">{avatarEmoji(profile.avatar_emoji)}</h1>
+      <div className="flex items-center gap-3">
+        <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-surface text-2xl shadow-soft">{avatarEmoji(profile.avatar_emoji)}</span>
+        <div>
+          <p className="text-sm text-ink-400">{greeting}</p>
+          <h1 className="font-display text-display-sm text-ink-900 -mt-0.5">{profile.display_name}</h1>
+        </div>
       </div>
 
       {/* Hero: partner status + streak + upcoming date + quick stats, all in one glanceable card */}
@@ -266,7 +269,7 @@ export default function DashboardScreen() {
             </div>
             {streak > 0 && (
               <div className="flex flex-shrink-0 flex-col items-center rounded-2xl bg-surface/70 px-3 py-1.5">
-                <span className="text-base leading-none">🔥</span>
+                <span className="flame-flicker text-base leading-none">🔥</span>
                 <span className="mt-0.5 text-xs font-bold text-ink-800">{streak}</span>
               </div>
             )}

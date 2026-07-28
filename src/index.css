@@ -202,4 +202,20 @@
     background-image: radial-gradient(rgb(var(--color-brand-300) / 0.18) 1.2px, transparent 1.2px);
     background-size: 22px 22px;
   }
+  .flame-flicker {
+    display: inline-block;
+    transform-origin: 50% 90%;
+    animation: flame-flicker 2.6s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .flame-flicker { animation: none; }
+  }
+}
+
+@keyframes flame-flicker {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  20% { transform: scale(1.08) rotate(-2deg); }
+  45% { transform: scale(0.96) rotate(1.5deg); }
+  65% { transform: scale(1.05) rotate(-1deg); }
+  85% { transform: scale(0.98) rotate(1deg); }
 }
