@@ -55,7 +55,7 @@ export default function LoveLettersScreen() {
       </div>
 
       {writing ? (
-        <div className="space-y-3 rounded-3xl bg-surface p-5 shadow-soft animate-scale-in">
+        <div className="space-y-3 rounded-[28px] bg-surface/85 backdrop-blur-xl p-6 shadow-soft border border-ink-100/40 animate-scale-in">
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title (optional)" className="input py-2.5 text-sm" />
           <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Write from the heart..." rows={8} className="input resize-none py-2.5 text-sm leading-relaxed" />
           <div>

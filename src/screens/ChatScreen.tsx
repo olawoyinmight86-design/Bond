@@ -302,7 +302,7 @@ export default function ChatScreen() {
         </div>
 
         {pinnedMessages.length > 0 && (
-          <div className="flex-1 overflow-y-auto rounded-2xl bg-surface p-5 shadow-soft no-scrollbar">
+          <div className="flex-1 overflow-y-auto rounded-[28px] bg-surface/85 backdrop-blur-xl p-6 shadow-soft border border-ink-100/40 no-scrollbar">
             <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-400">
               <Pin size={12} /> Pinned messages
             </p>

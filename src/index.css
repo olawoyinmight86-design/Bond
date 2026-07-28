@@ -158,7 +158,7 @@
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-all duration-200 ease-smooth active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none;
+    @apply inline-flex h-14 items-center justify-center gap-2 rounded-[18px] px-6 text-[15px] font-semibold transition-all duration-200 ease-smooth hover:scale-[1.03] active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none disabled:hover:scale-100;
   }
   .btn-primary { @apply btn text-white shadow-glow-brand transition-all duration-300; background-image: linear-gradient(135deg, rgb(var(--color-brand-500)), rgb(var(--color-brand-secondary))); }
   .btn-primary:hover { filter: brightness(1.08); }

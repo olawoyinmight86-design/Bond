@@ -115,7 +115,7 @@ export default function GamesScreen() {
               )}
             </div>
           ) : (
-            <div className="rounded-3xl bg-surface p-6 text-center shadow-soft">
+            <div className="rounded-[28px] bg-surface/85 backdrop-blur-xl p-6 text-center shadow-soft border border-ink-100/40">
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-500">
                 <Sparkles size={22} />
               </div>
@@ -136,7 +136,7 @@ export default function GamesScreen() {
       {tab === 'this_or_that' && (
         <div className="space-y-4 animate-fade-in">
           {totState.optionA && totState.optionB ? (
-            <div className="rounded-3xl bg-surface p-6 shadow-soft">
+            <div className="rounded-[28px] bg-surface/85 backdrop-blur-xl p-6 shadow-soft border border-ink-100/40">
               {!myPick ? (
                 <>
                   <p className="mb-4 text-center text-sm text-ink-500">Pick one — no overthinking it</p>
@@ -169,7 +169,7 @@ export default function GamesScreen() {
               )}
             </div>
           ) : (
-            <div className="rounded-3xl bg-surface p-6 text-center shadow-soft">
+            <div className="rounded-[28px] bg-surface/85 backdrop-blur-xl p-6 text-center shadow-soft border border-ink-100/40">
               <p className="mb-5 text-sm text-ink-500">Quick-fire choices, see how well you match.</p>
               <button onClick={newRound} disabled={busy} className="btn-primary w-full py-3">Start a round</button>
             </div>

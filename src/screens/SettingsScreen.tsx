@@ -122,7 +122,7 @@ export default function SettingsScreen() {
 
       <section>
         <p className="mb-3 text-[13px] font-medium text-ink-400 uppercase tracking-wider">Profile</p>
-        <div className="space-y-4 rounded-2xl bg-surface p-5 shadow-soft">
+        <div className="space-y-4 rounded-[28px] bg-surface/85 backdrop-blur-xl p-6 shadow-soft border border-ink-100/40">
           <div>
             <label className="label" htmlFor="name">Display name</label>
             <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} className="input" />
@@ -148,7 +148,7 @@ export default function SettingsScreen() {
 
       <section>
         <p className="mb-3 text-[13px] font-medium text-ink-400 uppercase tracking-wider">Theme</p>
-        <div className="rounded-2xl bg-surface p-5 shadow-soft">
+        <div className="rounded-[28px] bg-surface/85 backdrop-blur-xl p-6 shadow-soft border border-ink-100/40">
           <div className="grid grid-cols-5 gap-3">
             {THEMES.map((t) => (
               <button key={t.id} onClick={() => handleThemeChange(t.id)} className="flex flex-col items-center gap-1.5">
@@ -167,7 +167,7 @@ export default function SettingsScreen() {
 
       <section>
         <p className="mb-3 text-[13px] font-medium text-ink-400 uppercase tracking-wider">Pairing</p>
-        <div className="rounded-2xl bg-surface p-5 shadow-soft">
+        <div className="rounded-[28px] bg-surface/85 backdrop-blur-xl p-6 shadow-soft border border-ink-100/40">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-ink-500">Your partner code</p>
@@ -180,7 +180,7 @@ export default function SettingsScreen() {
 
       <section>
         <p className="mb-3 text-[13px] font-medium text-ink-400 uppercase tracking-wider">Anniversary & dates</p>
-        <div className="space-y-2 rounded-2xl bg-surface p-5 shadow-soft">
+        <div className="space-y-2 rounded-[28px] bg-surface/85 backdrop-blur-xl p-6 shadow-soft border border-ink-100/40">
           {dates.length > 0 && (
             <div className="mb-3 space-y-2">
               {dates.map((d) => (
@@ -208,7 +208,7 @@ export default function SettingsScreen() {
 
       <section>
         <p className="mb-3 text-[13px] font-medium text-ink-400 uppercase tracking-wider">Notifications</p>
-        <div className="rounded-2xl bg-surface p-5 shadow-soft">
+        <div className="rounded-[28px] bg-surface/85 backdrop-blur-xl p-6 shadow-soft border border-ink-100/40">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-500">
@@ -230,7 +230,7 @@ export default function SettingsScreen() {
           {pushError && <p className="mt-3 text-xs text-error-500">{pushError}</p>}
         </div>
 
-        <div className="mt-3 rounded-2xl bg-surface p-5 shadow-soft">
+        <div className="mt-3 rounded-[28px] bg-surface/85 backdrop-blur-xl p-6 shadow-soft border border-ink-100/40">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-50 text-accent-600">

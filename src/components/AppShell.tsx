@@ -136,27 +136,31 @@ export default function AppShell({ children }: { children: ReactNode }) {
         {/* Mobile/tablet floating bottom nav — hidden at desktop width */}
         <nav className="fixed bottom-0 left-0 right-0 z-30 safe-bottom lg:hidden">
           <div className="mx-auto max-w-2xl px-5 pb-3">
-            <div className="flex items-center justify-around rounded-2xl bg-surface px-2 py-2 shadow-float border border-ink-200/60">
+            <div className="flex items-center justify-around rounded-[24px] bg-surface/80 backdrop-blur-xl px-2 py-2 shadow-float border border-ink-200/60">
               {navItems.map(({ to, label, icon: Icon }) => (
                 <NavLink
                   key={to}
                   to={to}
                   end={to === '/'}
                   className={({ isActive }) =>
-                    `relative flex flex-1 flex-col items-center gap-1 rounded-xl py-2.5 text-[11px] font-medium transition-all duration-200 ${
+                    `relative flex flex-1 flex-col items-center gap-1 rounded-xl py-2.5 text-[11px] font-medium transition-all duration-200 active:scale-90 ${
                       isActive ? 'text-brand-500 bg-brand-50/80' : 'text-ink-400 hover:text-ink-600'
                     }`
                   }
                 >
-                  <span className="relative">
-                    <Icon size={20} />
-                    {to === '/chat' && unread > 0 && (
-                      <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-error-500 px-1 text-[9px] font-bold text-white">
-                        {unread > 9 ? '9+' : unread}
+                  {({ isActive }) => (
+                    <>
+                      <span className={`relative transition-transform duration-300 ease-bounce ${isActive ? 'scale-110' : 'scale-100'}`}>
+                        <Icon size={20} />
+                        {to === '/chat' && unread > 0 && (
+                          <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-error-500 px-1 text-[9px] font-bold text-white">
+                            {unread > 9 ? '9+' : unread}
+                          </span>
+                        )}
                       </span>
-                    )}
-                  </span>
-                  {label}
+                      {label}
+                    </>
+                  )}
                 </NavLink>
               ))}
             </div>

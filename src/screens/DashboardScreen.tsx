@@ -237,6 +237,14 @@ export default function DashboardScreen() {
   if (!profile) return null;
 
   const greeting = new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 18 ? 'Good afternoon' : 'Good evening';
+  const taglines = [
+    'Love grows in the little moments.',
+    'Every day together is worth remembering.',
+    'Distance means nothing when someone means everything.',
+    'Small hellos still make the biggest difference.',
+    'Still choosing each other, one day at a time.',
+  ];
+  const tagline = taglines[Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000) % taglines.length];
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -245,12 +253,13 @@ export default function DashboardScreen() {
         <div>
           <p className="text-sm text-ink-400">{greeting}</p>
           <h1 className="font-display text-display-sm text-ink-900 -mt-0.5">{profile.display_name}</h1>
+          <p className="mt-0.5 text-sm italic text-ink-400">{tagline}</p>
         </div>
       </div>
 
       {/* Hero: partner status + streak + upcoming date + quick stats, all in one glanceable card */}
       {partner.profile ? (
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-50 via-surface to-accent-50/40 p-5 shadow-soft animate-slide-up">
+        <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-brand-50 via-surface to-accent-50/40 p-6 shadow-lift border border-ink-100/40 animate-slide-up">
           <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-brand-100/40 blur-3xl" />
           <div className="pointer-events-none absolute -left-4 -bottom-4 h-24 w-24 rounded-full bg-accent-100/30 blur-2xl" />
 
@@ -321,7 +330,7 @@ export default function DashboardScreen() {
           </div>
         );
       })() : (
-        <div className="rounded-2xl bg-surface p-4 shadow-soft animate-slide-up stagger-1">
+        <div className="rounded-[28px] bg-surface/85 backdrop-blur-xl p-6 shadow-soft border border-ink-100/40 animate-slide-up stagger-1">
           {profile.now_playing_title ? (
             <div className="flex items-center gap-3">
               <Music size={15} className="flex-shrink-0 text-brand-400" />
@@ -345,7 +354,7 @@ export default function DashboardScreen() {
 
       {/* Today: question + tip combined into one card with a tab switch, instead of two full cards */}
       {(dailyRow || true) && (
-        <div className="rounded-2xl bg-surface shadow-soft animate-slide-up stagger-2 overflow-hidden">
+        <div className="rounded-[28px] bg-surface/85 backdrop-blur-xl shadow-soft border border-ink-100/40 animate-slide-up stagger-2 overflow-hidden">
           <div className="flex border-b border-ink-100">
             <button
               onClick={() => setTodayTab('question')}

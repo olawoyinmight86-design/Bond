@@ -73,8 +73,8 @@ export default {
       },
       fontSize: {
         'display-lg': ['2.5rem', { lineHeight: '1.1', letterSpacing: '-0.02em' }],
-        'display': ['2rem', { lineHeight: '1.15', letterSpacing: '-0.02em' }],
-        'display-sm': ['1.5rem', { lineHeight: '1.2', letterSpacing: '-0.01em' }],
+        'display': ['2.75rem', { lineHeight: '1.1', letterSpacing: '-0.02em' }],
+        'display-sm': ['1.875rem', { lineHeight: '1.15', letterSpacing: '-0.015em' }],
       },
       borderRadius: {
         '2xl': '1.25rem',
@@ -106,7 +106,7 @@ export default {
         },
         shimmer: { '0%': { backgroundPosition: '-200% 0' }, '100%': { backgroundPosition: '200% 0' } },
       },
-      transitionTimingFunction: { 'smooth': 'cubic-bezier(0.22, 1, 0.36, 1)' },
+      transitionTimingFunction: { 'smooth': 'cubic-bezier(0.22, 1, 0.36, 1)', 'bounce': 'cubic-bezier(0.34, 1.56, 0.64, 1)' },
     },
   },
   plugins: [],
