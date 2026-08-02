@@ -8,12 +8,16 @@ type AuthState = {
   profile: Profile | null;
   loading: boolean;
   initialized: boolean;
+  passwordRecovery: boolean;
+  clearPasswordRecovery: () => void;
   init: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string) => Promise<{ error: string | null; needsConfirmation: boolean }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: string | null }>;
+  requestPasswordReset: (email: string) => Promise<{ error: string | null }>;
+  updatePassword: (newPassword: string) => Promise<{ error: string | null }>;
 };
 
 export const useAuth = create<AuthState>((set, get) => ({
@@ -22,14 +26,21 @@ export const useAuth = create<AuthState>((set, get) => ({
   profile: null,
   loading: true,
   initialized: false,
+  passwordRecovery: false,
+
+  clearPasswordRecovery: () => set({ passwordRecovery: false }),
 
   init: async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       set({ session, user: session?.user ?? null, loading: false, initialized: true });
 
-      supabase.auth.onAuthStateChange((_event, session) => {
+      supabase.auth.onAuthStateChange((event, session) => {
         set({ session, user: session?.user ?? null });
+        if (event === 'PASSWORD_RECOVERY') {
+          set({ passwordRecovery: true });
+          return;
+        }
         if (session?.user) {
           get().refreshProfile();
         } else {
@@ -66,6 +77,18 @@ export const useAuth = create<AuthState>((set, get) => ({
     await supabase.auth.signOut();
     cacheRemove('profile');
     set({ profile: null, session: null, user: null });
+  },
+
+  requestPasswordReset: async (email) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    return { error: error?.message ?? null };
+  },
+
+  updatePassword: async (newPassword) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    return { error: error?.message ?? null };
   },
 
   refreshProfile: async () => {

@@ -4,9 +4,9 @@ import { BraceletLogo } from '../components/BraceletLogo';
 import { useOnlineStatus } from '../lib/useOnlineStatus';
 
 export default function AuthScreen() {
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, requestPasswordReset } = useAuth();
   const online = useOnlineStatus();
-  const [mode, setMode] = useState<'signin' | 'signup'>('signup');
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signup');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -19,6 +19,15 @@ export default function AuthScreen() {
     setError(null);
     setInfo(null);
     setBusy(true);
+
+    if (mode === 'forgot') {
+      const { error } = await requestPasswordReset(email);
+      if (error) setError(error);
+      else setInfo("If that email has an account, we've sent a reset link — check your inbox (and spam folder).");
+      setBusy(false);
+      return;
+    }
+
     if (mode === 'signin') {
       const { error } = await signIn(email, password);
       if (error) setError(error);
@@ -54,24 +63,33 @@ export default function AuthScreen() {
             <label className="label" htmlFor="email">Email</label>
             <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="input" placeholder="you@example.com" autoComplete="email" />
           </div>
-          <div>
-            <label className="label" htmlFor="password">Password</label>
-            <input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} className="input" placeholder="At least 6 characters" autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} />
-          </div>
+          {mode !== 'forgot' && (
+            <div>
+              <label className="label" htmlFor="password">Password</label>
+              <input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} className="input" placeholder="At least 6 characters" autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} />
+              {mode === 'signin' && (
+                <button type="button" onClick={() => { setMode('forgot'); setError(null); setInfo(null); }} className="mt-2 text-xs font-medium text-brand-500 hover:text-brand-600 transition-colors">
+                  Forgot password?
+                </button>
+              )}
+            </div>
+          )}
 
           {error && <p className="rounded-xl bg-error-50 px-4 py-3 text-sm text-error-600 animate-scale-in">{error}</p>}
           {info && <p className="rounded-xl bg-accent-50 px-4 py-3 text-sm text-accent-700 animate-scale-in">{info}</p>}
 
           <button type="submit" disabled={busy || !online} className="btn-primary w-full py-3.5">
-            {busy ? 'One moment...' : mode === 'signin' ? 'Welcome back' : 'Begin your bond'}
+            {busy ? 'One moment...' : mode === 'signin' ? 'Welcome back' : mode === 'forgot' ? 'Send reset link' : 'Begin your bond'}
           </button>
         </form>
 
         <p className="mt-8 text-center text-sm text-ink-400 animate-fade-in" style={{ animationDelay: '0.2s' }}>
           {mode === 'signin' ? (
-            <>New here?{' '}<button onClick={() => { setMode('signup'); setError(null); }} className="font-medium text-brand-500 hover:text-brand-600 transition-colors">Create an account</button></>
+            <>New here?{' '}<button onClick={() => { setMode('signup'); setError(null); setInfo(null); }} className="font-medium text-brand-500 hover:text-brand-600 transition-colors">Create an account</button></>
+          ) : mode === 'forgot' ? (
+            <>Remembered it?{' '}<button onClick={() => { setMode('signin'); setError(null); setInfo(null); }} className="font-medium text-brand-500 hover:text-brand-600 transition-colors">Back to sign in</button></>
           ) : (
-            <>Already bonded?{' '}<button onClick={() => { setMode('signin'); setError(null); }} className="font-medium text-brand-500 hover:text-brand-600 transition-colors">Sign in</button></>
+            <>Already bonded?{' '}<button onClick={() => { setMode('signin'); setError(null); setInfo(null); }} className="font-medium text-brand-500 hover:text-brand-600 transition-colors">Sign in</button></>
           )}
         </p>
       </div>

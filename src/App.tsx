@@ -5,6 +5,7 @@ import { supabase } from './lib/supabase';
 import { startAutoSync } from './lib/syncEngine';
 import { BraceletLogo } from './components/BraceletLogo';
 import AuthScreen from './screens/AuthScreen';
+import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
 import PairingScreen from './screens/PairingScreen';
 import DashboardScreen from './screens/DashboardScreen';
@@ -20,7 +21,7 @@ import PartnerActivityBubble from './components/PartnerActivityBubble';
 import { PartnerActivityProvider } from './lib/partnerActivity';
 
 export default function App() {
-  const { init, initialized, loading, session, profile } = useAuth();
+  const { init, initialized, loading, session, profile, passwordRecovery } = useAuth();
 
   useEffect(() => { init(); }, [init]);
   useEffect(() => startAutoSync(), []);
@@ -42,6 +43,10 @@ export default function App() {
         <div className="font-display text-lg text-ink-400">Bond</div>
       </div>
     );
+  }
+
+  if (passwordRecovery) {
+    return <Routes><Route path="*" element={<ResetPasswordScreen />} /></Routes>;
   }
 
   if (!session) {
